@@ -3,8 +3,8 @@ import * as dotenv from 'dotenv'; // Ensure dotenv is imported
 
 dotenv.config(); // Load .env variables
 
-const redisHost = process.env.REDIS_HOST 
-const redisPort = process.env.REDIS_PORT 
+const redisHost = process.env.REDIS_HOST || 'localhost'
+const redisPort = process.env.REDIS_PORT || 6379
 
 
 const redisClient = createClient({
