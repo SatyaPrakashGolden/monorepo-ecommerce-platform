@@ -1,36 +1,29 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ElasticsearchService } from './elasticsearch/elasticsearch.service';
-import redisClient from './redis/redisClient';
-import { ClientKafka } from '@nestjs/microservices';
+import {
+  Transport,
+  MicroserviceOptions,
+} from '@nestjs/microservices';
+import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const port = process.env.PORT ?? 3003;
 
-  // Redis connection
-  try {
-    await redisClient.connect();
-    console.log('✅ Redis Connected');
-  } catch (err) {
-    console.error('❌ Redis Connection Failed:', err.message);
-  }
+  // Setup TCP microservice on port 4001
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.TCP,
+    options: {
+      host: '0.0.0.0', // or 'localhost'
+      port: 4001,
+    },
+  });
 
-  // Elasticsearch connection
-  const elasticsearchService = app.get(ElasticsearchService);
-  const isConnected = await elasticsearchService.ping();
-  if (isConnected) {
-    console.log('✅ Elasticsearch Connected');
-  } else {
-    console.warn('❌ Elasticsearch Connection Failed');
-  }
+  await app.startAllMicroservices();
+  Logger.log(`✅ TCP Microservice listening on port 4001`);
 
-  // Kafka connection
-  const kafkaService = app.get<ClientKafka>('KAFKA_SERVICE');
-  await kafkaService.connect();
-  console.log('✅ Kafka Connected');
-
+  // Also expose HTTP REST if needed
+  const port =  2001;
   await app.listen(port);
-  console.log(`🚀 App is running on http://localhost:${port}`);
+  Logger.log(`🚀 catalog running on http://localhost:${port}`);
 }
 bootstrap();
