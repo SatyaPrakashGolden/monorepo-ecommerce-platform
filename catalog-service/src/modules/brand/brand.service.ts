@@ -1,3 +1,4 @@
+///monorepo-ecommerce-platform/catalog-service/src/modules/brand/brand.service.ts
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -65,5 +66,17 @@ export class BrandService {
     }
     return { message: 'Brand deleted successfully' };
   }
+
+async findByName(name: string): Promise<Brand> {
+  
+  const brand = await this.brandModel.findOne({ name }).exec();
+  if (!brand) {
+   
+    throw new NotFoundException('Brand not found with the given name');
+  }
+  return brand;
+}
+
+
 }
 

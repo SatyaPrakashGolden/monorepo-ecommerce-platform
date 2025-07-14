@@ -1,5 +1,5 @@
 // /home/satya/myproject/api-gateway/src/modules/brand/brand.gateway.module.ts
-
+//monorepo-ecommerce-platform/api-gateway/src/modules/brand/brand.gateway.module.ts
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 

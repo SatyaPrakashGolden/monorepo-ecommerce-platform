@@ -1,3 +1,4 @@
+//monorepo-ecommerce-platform/catalog-service/src/modules/brand/schema
 import {
   Controller,
   Get,
@@ -28,4 +29,29 @@ export class BrandController {
       throw errorResponse(error, 'Failed to create brand', 500, true);
     }
   }
+  @MessagePattern({ cmd: 'get_brand_by_id' })
+async getBrandById(@Payload() id: string) {
+  try {
+    const brand = await this.brandService.findOne(id);
+    return successResponse(brand, 'Brand fetched successfully');
+  } catch (error) {
+    throw errorResponse(error, 'Failed to fetch brand', 404, true);
+  }
+}
+   
+@MessagePattern({ cmd: 'get_brand_by_name' })
+async getBrandByName(@Payload() name: string) {
+ 
+  try {
+    const brand = await this.brandService.findByName(name);
+ 
+    return successResponse(brand, 'Brand fetched successfully by name');
+  } catch (error) {
+  
+    throw errorResponse(error, 'Failed to fetch brand by name', 404, true);
+  }
+}
+
+
+
 }

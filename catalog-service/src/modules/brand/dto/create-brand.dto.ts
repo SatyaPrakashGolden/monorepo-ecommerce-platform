@@ -1,3 +1,4 @@
+//monorepo-ecommerce-platform/catalog-service/src/modules/brand/dto/create-brand.dto.ts
 import { IsBoolean, IsOptional, IsString, IsUrl, Matches } from 'class-validator';
 
 export class CreateBrandDto {
