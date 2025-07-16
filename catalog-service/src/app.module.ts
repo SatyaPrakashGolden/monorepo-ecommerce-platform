@@ -5,7 +5,7 @@ import { ElasticsearchModule } from './elasticsearch/elasticsearch.module';
 import { KafkaModule } from './kafka/kafka.module';
 import { BrandModule } from './modules/brand/brand.module';
 import { DatabaseModule } from './database/database.module';
-
+import {CategoryModule} from './modules/category/categoty.module'
 @Module({
   imports: [
     MongooseModule.forRoot('mongodb+srv://satya:gvddB3fNptw1ABHW@cluster0.4zj2o.mongodb.net/fashion_store'),
@@ -13,6 +13,8 @@ import { DatabaseModule } from './database/database.module';
     KafkaModule,
     DatabaseModule,
     BrandModule,
+    CategoryModule
   ],
 })
 export class AppModule {}
+//catalog-service/src/app.module.ts
