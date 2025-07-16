@@ -2,30 +2,24 @@
 
 // /home/satya/myproject/catalog-service/src/modules/category/category.controller.ts
 
-import {
-  Controller,
-  Post,
-  Body,
-  Get,
-  Param,
-  Put,
-  Delete,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller } from '@nestjs/common';
+import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
-import { Category } from './schema/category.schema';
+import { errorResponse, successResponse } from '../../utils/error.util';
 
-@Controller('categories')
+@Controller() // The 'categories' route is no longer needed here
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
-  @Post('add-category')
-  async create(@Body() createDto: CreateCategoryDto): Promise<Category> {
-    return this.categoryService.create(createDto);
+  @MessagePattern({ cmd: 'add_category' })
+  async addCategoryMessage(@Payload() createDto: CreateCategoryDto) {
+    try {
+      const result = await this.categoryService.create(createDto);
+      return successResponse(result, 'Category created successfully');
+    } catch (error) {
+      // Use the error utility to throw an RpcException
+      throw errorResponse(error, 'Failed to create category', 500, true);
+    }
   }
-
-
 }

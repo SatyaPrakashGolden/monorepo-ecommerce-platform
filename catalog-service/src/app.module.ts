@@ -17,3 +17,4 @@ import {CategoryModule} from './modules/category/categoty.module'
   ],
 })
 export class AppModule {}
+//catalog-service/src/app.module.ts
