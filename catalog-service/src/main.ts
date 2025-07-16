@@ -9,7 +9,7 @@ import { Logger } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Setup TCP microservice on port 4001
+  app.setGlobalPrefix('api');
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.TCP,
     options: {
