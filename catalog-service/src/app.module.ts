@@ -5,7 +5,10 @@ import { ElasticsearchModule } from './elasticsearch/elasticsearch.module';
 import { KafkaModule } from './kafka/kafka.module';
 import { BrandModule } from './modules/brand/brand.module';
 import { DatabaseModule } from './database/database.module';
-import {CategoryModule} from './modules/category/categoty.module'
+import { CategoryModule } from './modules/category/categoty.module'
+import { ProductModule } from './modules/product/product.module';
+import { ReviewModule } from './modules/review/review.module';
+
 @Module({
   imports: [
     MongooseModule.forRoot('mongodb+srv://satya:gvddB3fNptw1ABHW@cluster0.4zj2o.mongodb.net/fashion_store'),
@@ -13,8 +16,9 @@ import {CategoryModule} from './modules/category/categoty.module'
     KafkaModule,
     DatabaseModule,
     BrandModule,
-    CategoryModule
+    CategoryModule,
+    ProductModule,
+    ReviewModule
   ],
 })
 export class AppModule {}
-//catalog-service/src/app.module.ts
