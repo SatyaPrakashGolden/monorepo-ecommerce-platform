@@ -1,3 +1,4 @@
+///home/satya/myproject/frontend/components/home/category-showcase.tsx
 import Link from "next/link"
 import Image from "next/image"
 
@@ -6,25 +7,25 @@ export function CategoryShowcase() {
     {
       name: "Women",
       href: "/women",
-      image: "/placeholder.svg?height=400&width=300",
+      image: "https://img.freepik.com/free-vector/flat-design-clothing-store-logo-design_23-2149496428.jpg?height=400&width=300",
       gradient: "gradient-royal-pink",
     },
     {
       name: "Men",
       href: "/men",
-      image: "/placeholder.svg?height=400&width=300",
+      image: "https://img.freepik.com/free-vector/flat-design-clothing-store-logo-design_23-2149496428.jpg?height=400&width=300",
       gradient: "gradient-royal-blue",
     },
     {
       name: "Kids",
       href: "/kids",
-      image: "/placeholder.svg?height=400&width=300",
+      image: "https://img.freepik.com/free-vector/flat-design-clothing-store-logo-design_23-2149496428.jpg?height=400&width=300",
       gradient: "gradient-luxury-mint",
     },
     {
       name: "Accessories",
       href: "/accessories",
-      image: "/placeholder.svg?height=400&width=300",
+      image: "https://img.freepik.com/free-vector/flat-design-clothing-store-logo-design_23-2149496428.jpg?height=400&width=300",
       gradient: "gradient-accent-gold",
     },
   ]
