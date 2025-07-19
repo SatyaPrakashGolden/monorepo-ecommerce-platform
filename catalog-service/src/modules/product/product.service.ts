@@ -4,11 +4,12 @@ import { Model } from 'mongoose';
 import slugify from 'slugify'; // 👈 Import slugify
 import { Product, ProductDocument } from './schema/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
-import {uploadFileToS3} from '../../utils/s3-upload'
+
 @Injectable()
 export class ProductService {
   constructor(@InjectModel(Product.name) private productModel: Model<ProductDocument>) {}
   
+  // 👇 Add this helper function
   private async generateUniqueSlug(name: string): Promise<string> {
     let baseSlug = slugify(name, { lower: true, strict: true });
     let slug = baseSlug;

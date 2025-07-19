@@ -21,7 +21,7 @@ async function bootstrap() {
   await app.startAllMicroservices();
   Logger.log(`✅ TCP Microservice listening on port 4001`);
 
-
+  // Also expose HTTP REST if needed
   const port =  2001;
   await app.listen(port);
   Logger.log(`🚀 catalog running on http://localhost:${port}`);
