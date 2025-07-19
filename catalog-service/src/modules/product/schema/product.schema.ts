@@ -116,14 +116,7 @@ export class Product {
   @Prop({ default: false })
   isBestSeller: boolean;
 
-  @Prop()
-  metaTitle: string;
 
-  @Prop()
-  metaDescription: string;
-
-  @Prop([String])
-  metaKeywords: string[];
 
   @Prop({ type: Date })
   launchDate: Date;
