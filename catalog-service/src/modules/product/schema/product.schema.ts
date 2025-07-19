@@ -64,6 +64,14 @@ export class Product {
   @Prop({ type: Map, of: String })
   specifications: Map<string, string>;
 
+
+  @Prop({
+    type: [String],
+    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+    default: [],
+  })
+  sizes: string[];
+
   @Prop()
   material: string;
 
@@ -74,7 +82,7 @@ export class Product {
   origin: string;
 
   @Prop({ default: 0 })
-  weight: number; // in grams
+  weight: number;
 
   @Prop({ type: Object })
   dimensions: {
@@ -82,6 +90,10 @@ export class Product {
     width: number;
     height: number;
   };
+
+  @Prop({ type: Types.ObjectId, ref: 'Offer' })
+  offer: Types.ObjectId;
+
 
   @Prop({ default: 0 })
   totalStock: number;
@@ -113,17 +125,28 @@ export class Product {
   @Prop({ default: false })
   isNewArrival: boolean;
 
-  @Prop({ default: false })
-  isBestSeller: boolean;
-
-  @Prop()
-  metaTitle: string;
-
-  @Prop()
-  metaDescription: string;
-
   @Prop([String])
-  metaKeywords: string[];
+  features: string[];
+
+  @Prop({ type: Map, of: String })
+  specs: Map<string, string>;
+
+  @Prop({ type: Map, of: String })
+  care: Map<string, string>;
+
+  @Prop([{ type: Types.ObjectId, ref: 'Review' }])
+  reviews: Types.ObjectId[];
+
+  @Prop([{
+    type: {
+      name: { type: String, required: true },
+      code: { type: String, required: true },
+      image: { type: String },
+    }
+  }])
+  colors: { name: string; code: string; image?: string }[];
+
+
 
   @Prop({ type: Date })
   launchDate: Date;
