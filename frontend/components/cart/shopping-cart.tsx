@@ -89,7 +89,7 @@ export function ShoppingCart() {
                 <p className="text-sm text-gray-600">
                   Size: {item.size} | Color: {item.color}
                 </p>
-                <p className="font-semibold">${item.price}</p>
+                <p className="font-semibold">₹{item.price}</p>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -128,15 +128,15 @@ export function ShoppingCart() {
         <div className="space-y-2 mb-4">
           <div className="flex justify-between">
             <span>Subtotal</span>
-            <span>${subtotal.toFixed(2)}</span>
+            <span>₹{subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span>Shipping</span>
-            <span>${shipping.toFixed(2)}</span>
+            <span>₹{shipping.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span>Tax</span>
-            <span>${tax.toFixed(2)}</span>
+            <span>₹{tax.toFixed(2)}</span>
           </div>
         </div>
 
@@ -144,7 +144,7 @@ export function ShoppingCart() {
 
         <div className="flex justify-between font-semibold text-lg mb-6">
           <span>Total</span>
-          <span>${total.toFixed(2)}</span>
+          <span>₹{total.toFixed(2)}</span>
         </div>
 
         <Button className="w-full gradient-royal-primary text-white border-0 mb-4">Proceed to Checkout</Button>

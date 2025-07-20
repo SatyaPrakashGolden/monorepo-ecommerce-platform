@@ -23,21 +23,21 @@ export function WishlistGrid() {
       name: "Elegant Evening Dress",
       price: 299.99,
       originalPrice: 399.99,
-      image: "/placeholder.svg?height=400&width=300",
+      image: "https://assets.ajio.com/medias/sys_master/root/20241125/7tKS/674489bc0f47f80c87a8db72/-473Wx593H-469687090-burgundy-MODEL3.jpg?height=400&width=300",
       inStock: true,
     },
     {
       id: 2,
       name: "Designer Handbag",
       price: 149.99,
-      image: "/placeholder.svg?height=400&width=300",
+      image: "https://assets.ajio.com/medias/sys_master/root/20250629/EHtV/6860c3feb13fc54edddb61d6/-473Wx593H-701495416-brown-MODEL.jpg?height=400&width=300",
       inStock: false,
     },
     {
       id: 3,
       name: "Casual Summer Dress",
       price: 79.99,
-      image: "/placeholder.svg?height=400&width=300",
+      image: "https://assets.ajio.com/medias/sys_master/root/20230704/P9Jz/64a410d7eebac147fc4a8703/-1117Wx1400H-442086879-orange-MODEL.jpg?height=400&width=300",
       inStock: true,
     },
   ])
@@ -104,16 +104,16 @@ export function WishlistGrid() {
 
               {/* Product Info */}
               <div className="p-4">
-                <Link href={`/product/${item.id}`} className="block">
+                <Link href={`/product/₹{item.id}`} className="block">
                   <h3 className="font-medium text-gray-900 hover:text-purple-600 transition-colors mb-2">
                     {item.name}
                   </h3>
                 </Link>
 
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="text-lg font-bold text-gray-900">${item.price}</span>
+                  <span className="text-lg font-bold text-gray-900">₹{item.price}</span>
                   {item.originalPrice && (
-                    <span className="text-sm text-gray-500 line-through">${item.originalPrice}</span>
+                    <span className="text-sm text-gray-500 line-through">₹{item.originalPrice}</span>
                   )}
                 </div>
 

@@ -1,10 +1,11 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
+  "/about/page": "app/about/page.js",
   "/contact/page": "app/contact/page.js",
-  "/shop/women/page": "app/shop/women/page.js",
-  "/login/page": "app/login/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
+  "/shop/men/page": "app/shop/men/page.js",
+  "/cart/page": "app/cart/page.js",
   "/page": "app/page.js",
-  "/shop/sale/page": "app/shop/sale/page.js",
-  "/shop/kids/page": "app/shop/kids/page.js"
+  "/shop/women/page": "app/shop/women/page.js",
+  "/shop/kids/page": "app/shop/kids/page.js",
+  "/shop/accessories/page": "app/shop/accessories/page.js"
 }

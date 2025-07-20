@@ -6,7 +6,7 @@ export function RelatedProducts() {
     name: `Related Product ${i + 1}`,
     price: Math.floor(Math.random() * 200) + 50,
     originalPrice: Math.random() > 0.5 ? Math.floor(Math.random() * 300) + 100 : undefined,
-    image: `/placeholder.svg?height=400&width=300&query=related product ${i + 1}`,
+    image: `/placeholder.svg?height=400&width=300&query=related product {i + 1}`,
     rating: Math.floor(Math.random() * 2) + 4,
     reviews: Math.floor(Math.random() * 100) + 10,
     isNew: Math.random() > 0.7,

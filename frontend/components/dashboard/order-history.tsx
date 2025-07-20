@@ -81,7 +81,7 @@ export function OrderHistory() {
           <CardContent>
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-semibold text-lg">${order.total}</p>
+                <p className="font-semibold text-lg">₹{order.total}</p>
                 {order.trackingNumber && <p className="text-sm text-gray-600">Tracking: {order.trackingNumber}</p>}
               </div>
               <div className="flex space-x-2">

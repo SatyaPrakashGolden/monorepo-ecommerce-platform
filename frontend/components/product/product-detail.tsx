@@ -33,10 +33,10 @@ export function ProductDetail({ productId }: ProductDetailProps) {
     brand: "Luxury Line",
     sku: "LED-001",
     images: [
-      "/placeholder.svg?height=600&width=500",
-      "/placeholder.svg?height=600&width=500",
-      "/placeholder.svg?height=600&width=500",
-      "/placeholder.svg?height=600&width=500",
+      "https://assets.ajio.com/medias/sys_master/root/20250711/nRHc/68714429b13fc54edd1aab86/-473Wx593H-701922851-peach-MODEL.jpg?height=600&width=500",
+      "https://assets.ajio.com/medias/sys_master/root/20250711/6xfr/68714429b13fc54edd1aab11/-473Wx593H-701922851-peach-MODEL2.jpg?height=600&width=500",
+      "https://assets.ajio.com/medias/sys_master/root/20250711/qPho/68714429b13fc54edd1aab17/-473Wx593H-701922851-peach-MODEL3.jpg?height=600&width=500",
+      "https://assets.ajio.com/medias/sys_master/root/20250711/DwYH/68714429b13fc54edd1aab15/-473Wx593H-701922851-peach-MODEL4.jpg?height=600&width=500",
     ],
     sizes: [
       { name: "XS", inStock: true },

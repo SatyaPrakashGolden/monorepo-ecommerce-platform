@@ -33,8 +33,8 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold mb-1">Phone</h3>
-                  <p className="text-gray-600">+1 (555) 123-4567</p>
-                  <p className="text-gray-600">+1 (555) 987-6543</p>
+                  <p className="text-gray-600">+91 98765 43210</p>
+                  <p className="text-gray-600">+91 55598 76543</p>
                 </div>
               </div>
 
@@ -44,8 +44,8 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold mb-1">Address</h3>
-                  <p className="text-gray-600">123 Fashion Avenue</p>
-                  <p className="text-gray-600">New York, NY 10001</p>
+                  <p className="text-gray-600">25 Fashion Street, Delhi</p>
+                  <p className="text-gray-600">INDIA, PIN 10001</p>
                 </div>
               </div>
 
