@@ -33,7 +33,7 @@ export function ProductDetail({ productId }: ProductDetailProps) {
     brand: "Luxury Line",
     sku: "LED-001",
     images: [
-      "/placeholder.svg?height=600&width=500",
+      "https://assets.ajio.com/medias/sys_master/root/20231030/CMfi/653f8544ddf779151962797b/-473Wx593H-466758727-blue-MODEL.jpg?height=600&width=500",
       "/placeholder.svg?height=600&width=500",
       "/placeholder.svg?height=600&width=500",
       "/placeholder.svg?height=600&width=500",

@@ -1,4 +1,4 @@
-// File: /home/satya/myproject/frontend/app/shop/women/page.tsx
+// File: /Users/rajsingh/ecommerce/monorepo-ecommerce-platform/frontend/app/shop/women/page.tsx
 import * as entry from '../../../../../app/shop/women/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

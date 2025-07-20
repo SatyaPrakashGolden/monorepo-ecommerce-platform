@@ -7,25 +7,25 @@ export function CategoryShowcase() {
     {
       name: "Women",
       href: "/women",
-      image: "https://img.freepik.com/free-vector/flat-design-clothing-store-logo-design_23-2149496428.jpg?height=400&width=300",
+      image: "https://img.freepik.com/free-photo/front-view-woman-looking-camera-mall_23-2148302834.jpg",
       gradient: "gradient-royal-pink",
     },
     {
       name: "Men",
       href: "/men",
-      image: "https://img.freepik.com/free-vector/flat-design-clothing-store-logo-design_23-2149496428.jpg?height=400&width=300",
+      image: "https://img.freepik.com/free-photo/man-portrait_1296-626.jpg",
       gradient: "gradient-royal-blue",
     },
     {
       name: "Kids",
       href: "/kids",
-      image: "https://img.freepik.com/free-vector/flat-design-clothing-store-logo-design_23-2149496428.jpg?height=400&width=300",
+      image: "https://img.freepik.com/free-photo/full-shot-kid-with-sunglasses_23-2149067155.jpg",
       gradient: "gradient-luxury-mint",
     },
     {
       name: "Accessories",
       href: "/accessories",
-      image: "https://img.freepik.com/free-vector/flat-design-clothing-store-logo-design_23-2149496428.jpg?height=400&width=300",
+      image: "https://img.freepik.com/free-photo/model-career-kit-still-life_23-2150229754.jpg",
       gradient: "gradient-accent-gold",
     },
   ]
