@@ -6,8 +6,9 @@ import { KafkaModule } from './kafka/kafka.module';
 import { BrandModule } from './modules/brand/brand.module';
 import { DatabaseModule } from './database/database.module';
 import { CategoryModule } from './modules/category/categoty.module'
-import { ProductModule } from './modules/product/product.module';
+//import { ProductModule } from './modules/product/product.module';
 import { ReviewModule } from './modules/review/review.module';
+import { OfferModule } from './modules/offer/offer.module'; // Import the new module
 
 @Module({
   imports: [
@@ -17,8 +18,9 @@ import { ReviewModule } from './modules/review/review.module';
     DatabaseModule,
     BrandModule,
     CategoryModule,
-    ProductModule,
-    ReviewModule
+    //ProductModule,
+    ReviewModule,
+    OfferModule 
   ],
 })
 export class AppModule {}
