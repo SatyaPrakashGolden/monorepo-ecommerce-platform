@@ -1,18 +1,34 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray, IsEnum, Min, Max } from 'class-validator';
-import { ReviewStatus } from '../schema/review.schema';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsNumber,
+  Min,
+  Max,
+  IsMongoId,
+  IsEnum,
+  IsBoolean,
+  IsDateString
+} from 'class-validator';
+
+export enum FitFeedbackEnum {
+  TRUE_TO_SIZE = 'True to size',
+  RUNS_SMALL = 'Runs small',
+  RUNS_LARGE = 'Runs large'
+}
 
 export class CreateReviewDto {
-  @IsString()
-  @IsNotEmpty()
-  product: string;
-
-  @IsString()
+  @IsMongoId()
   @IsNotEmpty()
   userId: string;
 
-  @IsString()
+  @IsMongoId()
   @IsNotEmpty()
-  userName: string;
+  productId: string;
+
+  @IsMongoId()
+  @IsOptional()
+  purchaseId?: string;
 
   @IsNumber()
   @Min(1)
@@ -27,11 +43,19 @@ export class CreateReviewDto {
   @IsNotEmpty()
   comment: string;
 
-  @IsArray()
+  @IsBoolean()
   @IsOptional()
-  images?: string[];
+  isVerifiedPurchase?: boolean = false;
 
-  @IsEnum(ReviewStatus)
+  @IsString()
   @IsOptional()
-  status?: ReviewStatus;
+  sizePurchased?: string;
+
+  @IsEnum(FitFeedbackEnum)
+  @IsOptional()
+  fitFeedback?: FitFeedbackEnum;
+
+  @IsDateString()
+  @IsNotEmpty()
+  reviewDate: string;
 }

@@ -37,6 +37,7 @@ export class Product {
   @Prop({ type: Types.ObjectId, ref: 'Brand', required: true })
   brand: Types.ObjectId;
 
+
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], required: true })
   categories: Types.ObjectId[];
 
@@ -47,13 +48,8 @@ export class Product {
   status: ProductStatus;
 
   @Prop({ required: true })
-  basePrice: number;
+  originalPrice: number;
 
-  @Prop()
-  discountPrice: number;
-
-  @Prop({ default: 0 })
-  discountPercentage: number;
 
   @Prop([String])
   images: string[];
@@ -91,8 +87,6 @@ export class Product {
     height: number;
   };
 
-  @Prop({ type: Types.ObjectId, ref: 'Offer' })
-  offer: Types.ObjectId;
 
 
   @Prop({ default: 0 })
@@ -107,11 +101,8 @@ export class Product {
   @Prop({ default: 0 })
   wishlistCount: number;
 
-  @Prop({ default: 0 })
-  rating: number;
 
-  @Prop({ default: 0 })
-  reviewCount: number;
+
 
   @Prop({ default: true })
   isReturnable: boolean;
@@ -140,19 +131,18 @@ export class Product {
   @Prop([{
     type: {
       name: { type: String, required: true },
-      code: { type: String, required: true },
-      image: { type: String },
+      value: { type: String, required: true },
+      inStock: { type: Boolean, default: true }
     }
   }])
-  colors: { name: string; code: string; image?: string }[];
+  colors: { name: string; value: string; inStock: boolean }[];
+
 
 
 
   @Prop({ type: Date })
   launchDate: Date;
 
-  @Prop({ type: Date })
-  discontinueDate: Date;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

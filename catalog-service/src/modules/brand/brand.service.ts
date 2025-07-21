@@ -7,6 +7,9 @@ import slugify from 'slugify';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 
+
+
+
 @Injectable()
 export class BrandService {
   constructor(
@@ -27,7 +30,6 @@ export class BrandService {
   }
 
 
-  
 
   async findAll(): Promise<Brand[]> {
     return this.brandModel.find().exec();
@@ -55,7 +57,6 @@ export class BrandService {
     if (!updatedBrand) {
       throw new NotFoundException('Brand not found');
     }
-
     return updatedBrand;
   }
 
