@@ -7,7 +7,8 @@ import {
   UploadedFile,
   UseInterceptors,
   BadRequestException,
-  Controller, Post, Body
+  Controller, Post, Body,
+  Get
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { uploadFileToS3 } from '../../utils/s3-upload';
@@ -16,15 +17,34 @@ import { uploadFileToS3 } from '../../utils/s3-upload';
 export class ProductController {
   constructor(private readonly productService: ProductService) { }
 
+
   @MessagePattern({ cmd: 'add_product' })
   async addProduct(@Payload() createProductDto: CreateProductDto) {
     try {
       const result = await this.productService.create(createProductDto);
-      return successResponse(result, 'Product created successfully');
+      return result;
     } catch (error) {
+      console.log(error)
       throw errorResponse(error, 'Failed to create product');
     }
   }
+  
+  @Post('add')
+  async addProductHttp(@Body() createProductDto: CreateProductDto) {
+    try {
+      const result = await this.productService.create(createProductDto);
+      return successResponse(result, 'Product created successfully');
+    } catch (error) {
+      console.log(error);
+      throw errorResponse(error, 'Failed to create product');
+    }
+  }
+
+  @Get('get-all')
+  async findAll() {
+    return await this.productService.findAll();
+  }
+
   @Post('upload-image')
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
@@ -39,4 +59,5 @@ export class ProductController {
       throw new BadRequestException('Image upload failed');
     }
   }
+
 }

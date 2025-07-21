@@ -1,29 +1,71 @@
-import { IsString, IsNotEmpty, IsArray, IsEnum, IsNumber, IsOptional, IsBoolean, IsDateString } from 'class-validator';
-import { Gender, ProductStatus } from '../schema/product.schema';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsArray,
+  IsNumber,
+  IsBoolean,
+  ValidateNested,
+  IsObject,
+  IsDateString,
+  IsMongoId,
+  ArrayUnique,
+  Min,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { ProductStatus, Gender } from '../schema/product.schema';
 
-export class CreateProductDto {
+export class DimensionDto {
+  @IsNumber()
+  length: number;
+
+  @IsNumber()
+  width: number;
+
+  @IsNumber()
+  height: number;
+}
+
+export class ColorDto {
   @IsString()
-  @IsNotEmpty()
   name: string;
 
   @IsString()
-  @IsNotEmpty()
-  description: string;
+  code: string;
 
-  @IsString()
   @IsOptional()
+  @IsString()
+  image?: string;
+}
+
+export class CreateProductDto {
+  @IsNotEmpty()
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsString()
   shortDescription?: string;
 
-  @IsString()
   @IsNotEmpty()
-  sku: string;
+  @IsString()
+  description: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
+  slug?: string;
+
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @IsMongoId()
   brand: string;
 
   @IsArray()
-  @IsNotEmpty()
+  @ArrayUnique()
+  @IsMongoId({ each: true })
   categories: string[];
 
   @IsEnum(Gender)
@@ -34,53 +76,124 @@ export class CreateProductDto {
   status?: ProductStatus;
 
   @IsNumber()
-  basePrice: number;
-
-  @IsNumber()
-  @IsOptional()
-  discountPrice?: number;
+  @Min(0)
+  originalPrice: number;
 
   @IsArray()
   @IsOptional()
+  @IsString({ each: true })
   images?: string[];
 
   @IsArray()
   @IsOptional()
+  @IsString({ each: true })
   tags?: string[];
 
-  @IsString()
+  @IsObject()
   @IsOptional()
+  specifications?: Record<string, string>;
+
+  @IsArray()
+  @IsOptional()
+  @IsEnum(['XS', 'S', 'M', 'L', 'XL', 'XXL'], { each: true })
+  sizes?: string[];
+
+  @IsOptional()
+  @IsString()
   material?: string;
 
-  @IsString()
   @IsOptional()
+  @IsString()
   careInstructions?: string;
 
-  @IsString()
   @IsOptional()
+  @IsString()
   origin?: string;
 
-  @IsNumber()
   @IsOptional()
+  @IsNumber()
   weight?: number;
 
-  @IsBoolean()
   @IsOptional()
+  @ValidateNested()
+  @Type(() => DimensionDto)
+  dimensions?: DimensionDto;
+
+  @IsArray()
+  @IsOptional()
+  @IsMongoId({ each: true })
+  offers?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  totalStock?: number;
+
+  @IsOptional()
+  @IsNumber()
+  soldCount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  viewCount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  wishlistCount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  rating?: number;
+
+  @IsOptional()
+  @IsNumber()
+  reviewCount?: number;
+
+  @IsOptional()
+  @IsBoolean()
   isReturnable?: boolean;
 
-  @IsNumber()
   @IsOptional()
+  @IsNumber()
   returnDays?: number;
 
-  @IsBoolean()
   @IsOptional()
+  @IsBoolean()
   isFeatured?: boolean;
 
-  @IsBoolean()
   @IsOptional()
+  @IsBoolean()
   isNewArrival?: boolean;
 
-  @IsDateString()
+  @IsArray()
   @IsOptional()
+  @IsString({ each: true })
+  features?: string[];
+
+  @IsOptional()
+  @IsObject()
+  specs?: Record<string, string>;
+
+  @IsOptional()
+  @IsObject()
+  care?: Record<string, string>;
+
+  @IsArray()
+  @IsOptional()
+  @IsMongoId({ each: true })
+  reviews?: string[];
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => ColorDto)
+  colors?: ColorDto[];
+
+
+  @IsOptional()
+  @IsDateString()
   launchDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  discontinueDate?: string;
 }
