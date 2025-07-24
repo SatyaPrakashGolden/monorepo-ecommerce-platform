@@ -3,20 +3,42 @@ import {
   IsNotEmpty,
   IsOptional,
   IsEnum,
-  IsArray,
   IsNumber,
+  IsArray,
   IsBoolean,
+  IsDateString,
   ValidateNested,
   IsObject,
-  IsDateString,
-  IsMongoId,
-  ArrayUnique,
-  Min,
+  ArrayNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ProductStatus, Gender } from '../schema/product.schema';
+import { Gender, ProductStatus, SizeName } from '../schema/product.schema';
 
-export class DimensionDto {
+
+export class SizeDto {
+  @IsEnum(SizeName)
+  name: SizeName;
+
+  @IsBoolean()
+  @IsOptional()
+  inStock?: boolean;
+}
+
+export class ColorDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  value: string;
+
+  @IsBoolean()
+  @IsOptional()
+  inStock?: boolean;
+}
+
+export class DimensionsDto {
   @IsNumber()
   length: number;
 
@@ -27,45 +49,29 @@ export class DimensionDto {
   height: number;
 }
 
-export class ColorDto {
-  @IsString()
-  name: string;
-
-  @IsString()
-  code: string;
-
-  @IsOptional()
-  @IsString()
-  image?: string;
-}
-
 export class CreateProductDto {
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty()
   name: string;
 
-  @IsOptional()
   @IsString()
-  shortDescription?: string;
-
   @IsNotEmpty()
-  @IsString()
   description: string;
 
-  @IsOptional()
   @IsString()
-  slug?: string;
+  @IsOptional()
+  shortDescription?: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   sku?: string;
 
-  @IsMongoId()
+  @IsString()
+  @IsNotEmpty()
   brand: string;
 
   @IsArray()
-  @ArrayUnique()
-  @IsMongoId({ each: true })
+  @ArrayNotEmpty()
   categories: string[];
 
   @IsEnum(Gender)
@@ -76,124 +82,110 @@ export class CreateProductDto {
   status?: ProductStatus;
 
   @IsNumber()
-  @Min(0)
   originalPrice: number;
 
   @IsArray()
-  @IsOptional()
   @IsString({ each: true })
+  @IsOptional()
   images?: string[];
 
   @IsArray()
-  @IsOptional()
   @IsString({ each: true })
+  @IsOptional()
   tags?: string[];
 
-  @IsObject()
   @IsOptional()
+  @IsObject()
   specifications?: Record<string, string>;
 
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SizeDto)
   @IsOptional()
-  @IsEnum(['XS', 'S', 'M', 'L', 'XL', 'XXL'], { each: true })
-  sizes?: string[];
+  sizes?: SizeDto[];
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   material?: string;
 
-  @IsOptional()
   @IsString()
-  careInstructions?: string;
-
   @IsOptional()
-  @IsString()
   origin?: string;
 
-  @IsOptional()
   @IsNumber()
+  @IsOptional()
   weight?: number;
 
-  @IsOptional()
   @ValidateNested()
-  @Type(() => DimensionDto)
-  dimensions?: DimensionDto;
-
-  @IsArray()
+  @Type(() => DimensionsDto)
   @IsOptional()
-  @IsMongoId({ each: true })
-  offers?: string[];
+  dimensions?: DimensionsDto;
 
+  @IsBoolean()
   @IsOptional()
+  inStock?: boolean;
+
   @IsNumber()
-  totalStock?: number;
-
   @IsOptional()
+  stockCount?: number;
+
   @IsNumber()
+  @IsOptional()
   soldCount?: number;
 
-  @IsOptional()
   @IsNumber()
-  viewCount?: number;
-
   @IsOptional()
-  @IsNumber()
   wishlistCount?: number;
 
-  @IsOptional()
-  @IsNumber()
-  rating?: number;
-
-  @IsOptional()
-  @IsNumber()
-  reviewCount?: number;
-
-  @IsOptional()
   @IsBoolean()
+  @IsOptional()
   isReturnable?: boolean;
 
-  @IsOptional()
   @IsNumber()
+  @IsOptional()
   returnDays?: number;
 
-  @IsOptional()
   @IsBoolean()
-  isFeatured?: boolean;
-
   @IsOptional()
-  @IsBoolean()
   isNewArrival?: boolean;
 
   @IsArray()
-  @IsOptional()
   @IsString({ each: true })
+  @IsOptional()
   features?: string[];
 
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  @IsObject()
-  specs?: Record<string, string>;
-
-  @IsOptional()
-  @IsObject()
-  care?: Record<string, string>;
+  careInstructions?: string[];
 
   @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  @IsMongoId({ each: true })
   reviews?: string[];
 
   @IsArray()
-  @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => ColorDto)
+  @IsOptional()
   colors?: ColorDto[];
 
-
-  @IsOptional()
   @IsDateString()
-  launchDate?: string;
-
   @IsOptional()
-  @IsDateString()
-  discontinueDate?: string;
+  launchDate?: Date;
+
+
+  @IsBoolean()
+  @IsOptional()
+  isNew?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isSale?: boolean;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  offers?: string[];
+
 }

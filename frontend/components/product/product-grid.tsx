@@ -5,7 +5,7 @@ export function ProductGrid() {
   const products = Array.from({ length: 24 }, (_, i) => ({
     id: i + 1,
     name: `Product ${i + 1}`,
-    price: Math.floor(Math.random() * 300) + 50,
+    discountPrice: Math.floor(Math.random() * 300) + 50,
     originalPrice: Math.random() > 0.5 ? Math.floor(Math.random() * 400) + 100 : undefined,
     image: `/placeholder.svg?height=400&width=300&query=fashion product ${i + 1}`,
     rating: Math.floor(Math.random() * 2) + 4,

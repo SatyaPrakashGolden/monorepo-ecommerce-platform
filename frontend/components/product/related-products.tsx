@@ -4,7 +4,7 @@ export function RelatedProducts() {
   const relatedProducts = Array.from({ length: 4 }, (_, i) => ({
     id: i + 100,
     name: `Related Product ${i + 1}`,
-    price: Math.floor(Math.random() * 200) + 50,
+    discountPrice: Math.floor(Math.random() * 200) + 50,
     originalPrice: Math.random() > 0.5 ? Math.floor(Math.random() * 300) + 100 : undefined,
     image: `/placeholder.svg?height=400&width=300&query=related product ${i + 1}`,
     rating: Math.floor(Math.random() * 2) + 4,

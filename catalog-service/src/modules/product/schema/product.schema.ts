@@ -17,6 +17,26 @@ export enum Gender {
   KIDS = 'kids'
 }
 
+export enum SizeName {
+  XS = 'XS',
+  S = 'S',
+  M = 'M',
+  L = 'L',
+  XL = 'XL',
+  XXL = 'XXL',
+}
+
+@Schema({ _id: false })
+export class Size {
+  @Prop({ type: String, enum: SizeName, required: true })
+  name: SizeName;
+
+  @Prop({ type: Boolean, default: false })
+  inStock: boolean;
+}
+
+export const SizeSchema = SchemaFactory.createForClass(Size);
+
 @Schema({ timestamps: true })
 export class Product {
   @Prop({ required: true })
@@ -61,18 +81,11 @@ export class Product {
   specifications: Map<string, string>;
 
 
-  @Prop({
-    type: [String],
-    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
-    default: [],
-  })
-  sizes: string[];
+  @Prop({ type: [SizeSchema], default: [] })
+  sizes: Size[];
 
   @Prop()
   material: string;
-
-  @Prop()
-  careInstructions: string;
 
   @Prop()
   origin: string;
@@ -87,20 +100,21 @@ export class Product {
     height: number;
   };
 
+  @Prop()
+  inStock: boolean;
+
 
 
   @Prop({ default: 0 })
-  totalStock: number;
+  stockCount: number;
 
   @Prop({ default: 0 })
   soldCount: number;
 
-  @Prop({ default: 0 })
-  viewCount: number;
+
 
   @Prop({ default: 0 })
   wishlistCount: number;
-
 
 
 
@@ -110,8 +124,7 @@ export class Product {
   @Prop({ default: 7 })
   returnDays: number;
 
-  @Prop({ default: false })
-  isFeatured: boolean;
+
 
   @Prop({ default: false })
   isNewArrival: boolean;
@@ -119,11 +132,10 @@ export class Product {
   @Prop([String])
   features: string[];
 
-  @Prop({ type: Map, of: String })
-  specs: Map<string, string>;
 
-  @Prop({ type: Map, of: String })
-  care: Map<string, string>;
+  @Prop([String])
+  careInstructions: string[];
+
 
   @Prop([{ type: Types.ObjectId, ref: 'Review' }])
   reviews: Types.ObjectId[];
@@ -137,7 +149,14 @@ export class Product {
   }])
   colors: { name: string; value: string; inStock: boolean }[];
 
+  @Prop({ default: false })
+  isNew: boolean;
 
+  @Prop({ default: false })
+  isSale: boolean;
+
+  @Prop([{ type: Types.ObjectId, ref: 'Offer' }])
+  offers: Types.ObjectId[];
 
 
   @Prop({ type: Date })

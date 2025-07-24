@@ -24,13 +24,13 @@ export function ProductDetail({ productId }: ProductDetailProps) {
   const product = {
     id: productId,
     name: "Elegant Evening Dress",
-    price: 299.99,
+    discountPrice: 299.99,
     originalPrice: 399.99,
     rating: 4.8,
     reviews: 124,
     inStock: true,
     stockCount: 8,
-    brand: "Luxury Line",
+    brand: "Luxury L  ine",
     sku: "LED-001",
     images: [
       "/placeholder.svg?height=600&width=500",
@@ -77,7 +77,7 @@ export function ProductDetail({ productId }: ProductDetailProps) {
     ],
   }
 
-  const discountPercentage = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  const discountPercentage = Math.round(((product.originalPrice - product.discountPrice) / product.originalPrice) * 100)
 
   const getStockStatus = () => {
     if (product.stockCount === 0) return { label: "Out of Stock", color: "bg-red-100 text-red-800" }
@@ -164,10 +164,10 @@ export function ProductDetail({ productId }: ProductDetailProps) {
 
           {/* Price */}
           <div className="flex items-center gap-3">
-            <span className="text-3xl font-bold text-gray-900">${product.price}</span>
+            <span className="text-3xl font-bold text-gray-900">${product.discountPrice}</span>
             <span className="text-xl text-gray-500 line-through">${product.originalPrice}</span>
             <Badge className="gradient-accent-gold text-white border-0">
-              Save ${(product.originalPrice - product.price).toFixed(2)}
+              Save ${(product.originalPrice - product.discountPrice).toFixed(2)}
             </Badge>
           </div>
         </div>
@@ -256,7 +256,7 @@ export function ProductDetail({ productId }: ProductDetailProps) {
             disabled={!selectedSize || !selectedColor || !product.inStock}
           >
             <ShoppingBag className="h-5 w-5 mr-2" />
-            Add to Cart - ${(product.price * quantity).toFixed(2)}
+            Add to Cart - ${(product.discountPrice * quantity).toFixed(2)}
           </Button>
 
           <div className="grid grid-cols-2 gap-3">
