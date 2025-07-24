@@ -6,21 +6,21 @@ import { CreateOfferDto } from './dto/create-offer.dto';
 
 @Injectable()
 export class OfferService {
-  constructor(@InjectModel(Offer.name) private offerModel: Model<OfferDocument>) {}
+  constructor(
+    @InjectModel(Offer.name) private offerModel: Model<OfferDocument>,
+  ) {}
 
   async create(createOfferDto: CreateOfferDto): Promise<Offer> {
-    const offerCode = createOfferDto.code.toUpperCase();
-    const existingOffer = await this.offerModel.findOne({ code: offerCode });
-
-    if (existingOffer) {
-      throw new BadRequestException('Offer code must be unique.');
-    }
-    
-    const newOffer = new this.offerModel({
-      ...createOfferDto,
-      code: offerCode,
+    // Optional: Check for duplicate name or overlapping date range
+    const existingOffer = await this.offerModel.findOne({
+      name: createOfferDto.name,
     });
 
+    if (existingOffer) {
+      throw new BadRequestException('Offer with this name already exists.');
+    }
+
+    const newOffer = new this.offerModel(createOfferDto);
     return newOffer.save();
   }
 }

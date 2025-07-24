@@ -19,10 +19,16 @@ export class ReviewService {
 
   async createReview(createReviewDto: CreateReviewDto): Promise<ReviewDocument> {
     try {
+      // Validate product exists
+      const productExists = await this.productModel.findById(createReviewDto.productId);
+      if (!productExists) {
+        throw new NotFoundException('Product not found');
+      }
+
       // Check if user has already reviewed this product
       const existingReview = await this.reviewModel.findOne({
         userId: new Types.ObjectId(createReviewDto.userId),
-        productId: new Types.ObjectId(createReviewDto.productId)
+        productId: new Types.ObjectId(createReviewDto.productId),
       });
 
       if (existingReview) {
@@ -32,7 +38,7 @@ export class ReviewService {
       // Verify purchase if purchaseId is provided
       let isVerifiedPurchase = false;
       if (createReviewDto.purchaseId) {
-        // Here you would typically check if the purchase exists and belongs to the user
+        // Here you would typically verify the purchase exists and belongs to the user
         // For now, we'll set it to true if purchaseId is provided
         isVerifiedPurchase = true;
       }
@@ -46,55 +52,62 @@ export class ReviewService {
         isVerifiedPurchase: createReviewDto.isVerifiedPurchase ?? isVerifiedPurchase,
         reviewDate: new Date(),
         helpfulCount: 0,
-        isVisible: true
+        isVisible: true,
       };
 
       const createdReview = new this.reviewModel(reviewData);
       const savedReview = await createdReview.save();
 
-      // Update review summary
+      // Update review summary for this specific product
       await this.updateReviewSummary(new Types.ObjectId(createReviewDto.productId));
 
       return savedReview;
     } catch (error) {
-      if (error instanceof ConflictException) {
+      if (error instanceof ConflictException || error instanceof NotFoundException) {
         throw error;
       }
-      throw new BadRequestException('Failed to create review');
+      throw new BadRequestException('Failed to create review: ' + error.message);
     }
   }
 
   private async updateReviewSummary(productId: Types.ObjectId): Promise<void> {
-    const reviews = await this.reviewModel.find({ 
-      productId, 
-      isVisible: true 
-    });
+    try {
+      // Fetch all visible reviews for the specific product
+      const reviews = await this.reviewModel.find({ 
+        productId, 
+        isVisible: true 
+      });
 
-    const totalReviews = reviews.length;
-    const averageRating = totalReviews > 0 
-      ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
-      : 0;
+      const totalReviews = reviews.length;
+      const averageRating = totalReviews > 0 
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
+        : 0;
 
-    const ratingDistribution = {
-      5: reviews.filter(r => r.rating === 5).length,
-      4: reviews.filter(r => r.rating === 4).length,
-      3: reviews.filter(r => r.rating === 3).length,
-      2: reviews.filter(r => r.rating === 2).length,
-      1: reviews.filter(r => r.rating === 1).length,
-    };
+      const ratingDistribution = {
+        5: reviews.filter(r => r.rating === 5).length,
+        4: reviews.filter(r => r.rating === 4).length,
+        3: reviews.filter(r => r.rating === 3).length,
+        2: reviews.filter(r => r.rating === 2).length,
+        1: reviews.filter(r => r.rating === 1).length,
+      };
 
-    const verifiedPurchaseCount = reviews.filter(r => r.isVerifiedPurchase).length;
+      const verifiedPurchaseCount = reviews.filter(r => r.isVerifiedPurchase).length;
 
-    await this.reviewSummaryModel.findOneAndUpdate(
-      { productId },
-      {
-        totalReviews,
-        averageRating: Math.round(averageRating * 100) / 100, 
-        ratingDistribution,
-        verifiedPurchaseCount
-      },
-      { upsert: true, new: true }
-    );
+      // Update or create the review summary for this specific product
+      await this.reviewSummaryModel.findOneAndUpdate(
+        { productId },
+        {
+          productId,
+          totalReviews,
+          averageRating: Math.round(averageRating * 100) / 100,
+          ratingDistribution,
+          verifiedPurchaseCount,
+        },
+        { upsert: true, new: true }
+      );
+    } catch (error) {
+      throw new BadRequestException('Failed to update review summary: ' + error.message);
+    }
   }
 
   async getReviewsByProduct(

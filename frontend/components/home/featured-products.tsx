@@ -5,7 +5,7 @@ export function FeaturedProducts() {
     {
       id: 1,
       name: "Elegant Evening Dress",
-      price: 299.99,
+      discountPrice: 299.99,
       originalPrice: 399.99,
       image: "https://dukaan.b-cdn.net/700x700/webp/media/830c29b2-1280-42f3-b4c6-2b12965baf19.jpg?height=400&width=300",
       rating: 4.8,
@@ -16,7 +16,7 @@ export function FeaturedProducts() {
     {
       id: 2,
       name: "Classic Leather Jacket",
-      price: 199.99,
+      discountPrice: 199.99,
       image: "https://m.media-amazon.com/images/I/71C5WpF7b+L._SY879_.jpg?height=400&width=300",
       rating: 4.6,
       reviews: 89,
@@ -26,7 +26,7 @@ export function FeaturedProducts() {
     {
       id: 3,
       name: "Designer clothes",
-      price: 149.99,
+      discountPrice: 149.99,
       originalPrice: 199.99,
       image: "https://bougainvillealife.in/cdn/shop/files/1_5b790d4e-b8c8-4d54-838e-0dae78700c6c.jpg?v=1742578598&width=1100?height=400&width=300",
       rating: 4.9,
@@ -37,7 +37,7 @@ export function FeaturedProducts() {
     {
       id: 4,
       name: "jeanse",
-      price: 79.99,
+      discountPrice: 79.99,
       image: "https://assets.sheinindia.in/medias/shein_sys_master/root/20250318/Tjqv/67d8f93d2960820c49f6c8e7/-473Wx593H-443322175-ltblue-MODEL.jpg?height=400&width=300",
       rating: 4.7,
       reviews: 203,

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 interface Product {
   id: number
   name: string
-  price: number
+  discountPrice: number
   originalPrice?: number
   image: string
   rating: number
@@ -30,7 +30,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
   const [isWishlisted, setIsWishlisted] = useState(false)
 
   const discountPercentage = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    ? Math.round(((product.originalPrice - product.discountPrice) / product.originalPrice) * 100)
     : 0
 
   const getStockStatus = () => {
@@ -77,7 +77,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
 
               {/* Price */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg font-bold text-gray-900">${product.price}</span>
+                <span className="text-lg font-bold text-gray-900">${product.discountPrice}</span>
                 {product.originalPrice && (
                   <span className="text-sm text-gray-500 line-through">${product.originalPrice}</span>
                 )}
@@ -179,7 +179,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
 
         {/* Price */}
         <div className="flex items-center gap-2">
-          <span className="text-lg font-bold text-gray-900">${product.price}</span>
+          <span className="text-lg font-bold text-gray-900">${product.discountPrice}</span>
           {product.originalPrice && (
             <span className="text-sm text-gray-500 line-through">${product.originalPrice}</span>
           )}

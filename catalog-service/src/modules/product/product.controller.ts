@@ -8,7 +8,7 @@ import {
   UseInterceptors,
   BadRequestException,
   Controller, Post, Body,
-  Get
+  Get, Param
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { uploadFileToS3 } from '../../utils/s3-upload';
@@ -28,7 +28,7 @@ export class ProductController {
       throw errorResponse(error, 'Failed to create product');
     }
   }
-  
+
   @Post('add')
   async addProductHttp(@Body() createProductDto: CreateProductDto) {
     try {
@@ -57,6 +57,28 @@ export class ProductController {
       return { success: true, imageUrl };
     } catch (error) {
       throw new BadRequestException('Image upload failed');
+    }
+  }
+
+
+  @Get('product-details/:id')
+  async getProductDetails(@Param('id') id: string) {
+    try {
+      const product = await this.productService.findByIdWithDetails(id);
+      return successResponse(product, 'Product fetched successfully');
+    } catch (error) {
+      console.log(error);
+      throw errorResponse(error, 'Failed to fetch product details');
+    }
+  }
+  @Get('product-featured')
+  async getFeaturedProducts() {
+    try {
+      const featuredProducts = await this.productService.getFeaturedProducts();
+      return successResponse(featuredProducts, 'Featured products fetched successfully');
+    } catch (error) {
+      console.error(error);
+      throw errorResponse(error, 'Failed to fetch featured products');
     }
   }
 
