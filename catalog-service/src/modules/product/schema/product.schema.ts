@@ -7,7 +7,8 @@ export enum ProductStatus {
   DRAFT = 'draft',
   ACTIVE = 'active',
   INACTIVE = 'inactive',
-  OUT_OF_STOCK = 'out_of_stock'
+  OUT_OF_STOCK = 'out_of_stock',
+    SALE = 'sale'
 }
 
 export enum Gender {
@@ -60,6 +61,10 @@ export class Product {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], required: true })
   categories: Types.ObjectId[];
+
+  @Prop([{ type: Types.ObjectId, ref: 'Product' }])
+  relatedProducts: Types.ObjectId[];
+
 
   @Prop({ required: true, enum: Gender })
   gender: Gender;

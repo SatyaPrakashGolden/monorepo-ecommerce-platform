@@ -15,6 +15,246 @@ export class ProductService {
     @InjectModel(Offer.name) private offerModel: Model<OfferDocument>,
   ) { }
 
+
+  async getRelatedProducts(productId: string): Promise<any[]> {
+    // First, get the main product to access its relatedProducts array
+    const mainProduct = await this.productModel
+      .findById(productId)
+      .select('relatedProducts')
+      .lean()
+      .exec();
+
+    // If no product found or no related products, return empty array
+    if (!mainProduct || !mainProduct.relatedProducts || mainProduct.relatedProducts.length === 0) {
+      return [];
+    }
+
+    const products = await this.productModel
+      .aggregate([
+        // Step 1: Filter for related products that are active
+        {
+          $match: {
+            _id: { $in: mainProduct.relatedProducts },
+            status: ProductStatus.ACTIVE,
+          },
+        },
+
+        // Step 2: Join with Offer collection - optimized pipeline
+        {
+          $lookup: {
+            from: 'offers',
+            let: {
+              productOffers: { $ifNull: ['$offers', []] },
+              productPrice: '$originalPrice'
+            },
+            pipeline: [
+              // Pre-filter active offers only
+              {
+                $match: {
+                  isActive: true,
+                  // Add date validation to ensure offers are currently valid
+                  startDate: { $lte: new Date() },
+                  endDate: { $gte: new Date() }
+                },
+              },
+              {
+                $match: {
+                  $expr: {
+                    $or: [
+                      { $in: ['$_id', '$$productOffers'] },
+                      { $eq: ['$appliesToAllProducts', true] },
+                    ],
+                  },
+                },
+              },
+              // Calculate actual discount amount for better sorting
+              {
+                $addFields: {
+                  actualDiscountAmount: {
+                    $cond: {
+                      if: { $eq: ['$discountType', 'percentage'] },
+                      then: {
+                        $multiply: [
+                          '$$productPrice',
+                          { $divide: ['$discountValue', 100] }
+                        ]
+                      },
+                      else: '$discountValue'
+                    }
+                  }
+                }
+              },
+              // Sort by actual discount amount to get the best deal
+              {
+                $sort: { actualDiscountAmount: -1 },
+              },
+              // Limit to the best offer
+              { $limit: 1 },
+            ],
+            as: 'bestOffer',
+          },
+        },
+
+        // Step 3: Join with ReviewSummary collection
+        {
+          $lookup: {
+            from: 'reviewSummaries',
+            localField: '_id',
+            foreignField: 'productId',
+            as: 'reviewSummary',
+          },
+        },
+
+        // Step 4: Unwind both collections
+        {
+          $unwind: {
+            path: '$bestOffer',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $unwind: {
+            path: '$reviewSummary',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+
+        // Step 5: Calculate final fields with better error handling
+        {
+          $addFields: {
+            // Calculate discount percentage for display
+            discountPercentage: {
+              $cond: {
+                if: { $eq: [{ $ifNull: ['$bestOffer', null] }, null] },
+                then: 0,
+                else: {
+                  $round: [
+                    {
+                      $multiply: [
+                        {
+                          $divide: [
+                            {
+                              $cond: {
+                                if: { $eq: ['$bestOffer.discountType', 'percentage'] },
+                                then: {
+                                  $multiply: [
+                                    '$originalPrice',
+                                    { $divide: ['$bestOffer.discountValue', 100] }
+                                  ]
+                                },
+                                else: '$bestOffer.discountValue'
+                              }
+                            },
+                            '$originalPrice'
+                          ]
+                        },
+                        100
+                      ]
+                    },
+                    0
+                  ]
+                }
+              }
+            }
+          }
+        },
+
+        // Step 6: Project final structure
+        {
+          $project: {
+            id: '$_id',
+            name: 1,
+            slug: 1,
+            originalPrice: 1,
+            discountPrice: {
+              $round: [
+                {
+                  $cond: {
+                    if: { $eq: [{ $ifNull: ['$bestOffer', null] }, null] },
+                    then: '$originalPrice',
+                    else: {
+                      $max: [
+                        0,
+                        {
+                          $cond: {
+                            if: { $eq: ['$bestOffer.discountType', 'percentage'] },
+                            then: {
+                              $subtract: [
+                                '$originalPrice',
+                                {
+                                  $multiply: [
+                                    '$originalPrice',
+                                    { $divide: ['$bestOffer.discountValue', 100] },
+                                  ],
+                                },
+                              ],
+                            },
+                            else: {
+                              $subtract: ['$originalPrice', '$bestOffer.discountValue']
+                            },
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+                2 // Round to 2 decimal places for currency
+              ],
+            },
+            discountPercentage: 1,
+            hasDiscount: {
+              $ne: [{ $ifNull: ['$bestOffer', null] }, null]
+            },
+            image: {
+              $cond: {
+                if: { $gt: [{ $size: { $ifNull: ['$images', []] } }, 0] },
+                then: { $arrayElemAt: ['$images', 0] },
+                else: null
+              }
+            },
+            rating: {
+              $round: [
+                { $ifNull: ['$reviewSummary.averageRating', 0] },
+                1 // Round to 1 decimal place
+              ]
+            },
+            totalReviews: { $ifNull: ['$reviewSummary.totalReviews', 0] },
+            isNew: 1,
+            isSale: 1,
+            isInStock: '$inStock',
+            stockCount: 1,
+            // Include offer details for frontend display
+            offerDetails: {
+              $cond: {
+                if: { $ne: [{ $ifNull: ['$bestOffer', null] }, null] },
+                then: {
+                  name: '$bestOffer.name',
+                  discountType: '$bestOffer.discountType',
+                  discountValue: '$bestOffer.discountValue'
+                },
+                else: null
+              }
+            },
+            _id: 0,
+          },
+        },
+
+        // Step 7: Sort related products
+        {
+          $sort: {
+            // Prioritize products with discounts, then by rating, then by review count
+            hasDiscount: -1,
+            rating: -1,
+            totalReviews: -1,
+            name: 1
+          }
+        }
+      ])
+      .exec();
+
+    return products;
+  }
+
   async getFeaturedProducts(): Promise<any[]> {
     const products = await this.productModel
       .aggregate([
@@ -136,6 +376,7 @@ export class ProductService {
     return products;
   }
 
+
   private async generateUniqueSlug(name: string): Promise<string> {
     let baseSlug = slugify(name, { lower: true, strict: true });
     let slug = baseSlug;
@@ -164,7 +405,6 @@ export class ProductService {
   async findAll(): Promise<Product[]> {
     return this.productModel.find().exec();
   }
-
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const { name, brand, categories } = createProductDto;
@@ -205,8 +445,7 @@ export class ProductService {
 
 
 
-
-async findByIdWithDetails(productId: string): Promise<any> {
+  async findByIdWithDetails(productId: string): Promise<any> {
     // Validate ObjectId format
     if (!Types.ObjectId.isValid(productId)) {
       throw new NotFoundException('Invalid product ID format');
@@ -398,6 +637,6 @@ async findByIdWithDetails(productId: string): Promise<any> {
   }
 
 
+
+
 }
-
-

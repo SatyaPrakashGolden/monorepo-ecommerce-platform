@@ -13,4 +13,22 @@ export class ProductGatewayService {
       this.productClient.send({ cmd: 'add_product' }, productData),
     );
   }
+
+  async getFeaturedProducts() {
+    return await firstValueFrom(
+      this.productClient.send({ cmd: 'product_featured' }, {}), 
+    );
+  }
+
+async getRelatedProducts(productId: string) {
+  return await firstValueFrom(
+    this.productClient.send({ cmd: 'product_related' }, productId),
+  );
+}
+
+  async findByIdWithDetails(productId: string) {
+    return await firstValueFrom(
+      this.productClient.send({ cmd: 'product_details' }, productId),
+    );
+  }
 }

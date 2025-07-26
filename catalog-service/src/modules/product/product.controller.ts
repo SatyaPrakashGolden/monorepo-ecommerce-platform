@@ -18,6 +18,41 @@ export class ProductController {
   constructor(private readonly productService: ProductService) { }
 
 
+  @MessagePattern({ cmd: 'product_details' })
+  async getProductDetailsMessage(@Payload() productId: string) {
+    try {
+      const result = await this.productService.findByIdWithDetails(productId);
+      return result;
+    } catch (error) {
+      console.error(error);
+      throw errorResponse(error, 'Failed to fetch product details via message pattern');
+    }
+  }
+
+
+  @MessagePattern({ cmd: 'product_related' })
+  async getRelatedProductsMessage(@Payload() productId: string) {
+    try {
+      const result = await this.productService.getRelatedProducts(productId);
+      return result
+    } catch (error) {
+      console.error(error);
+      throw errorResponse(error, 'Failed to fetch related products');
+    }
+  }
+
+
+  @MessagePattern({ cmd: 'product_featured' })
+  async getFeaturedProductsMessage() {
+    try {
+      const result = await this.productService.getFeaturedProducts();
+      return result;
+    } catch (error) {
+      console.log(error);
+      throw errorResponse(error, 'Failed to fetch featured products');
+    }
+  }
+
   @MessagePattern({ cmd: 'add_product' })
   async addProduct(@Payload() createProductDto: CreateProductDto) {
     try {
@@ -40,10 +75,6 @@ export class ProductController {
     }
   }
 
-  @Get('get-all')
-  async findAll() {
-    return await this.productService.findAll();
-  }
 
   @Post('upload-image')
   @UseInterceptors(FileInterceptor('file'))
@@ -61,25 +92,8 @@ export class ProductController {
   }
 
 
-  @Get('product-details/:id')
-  async getProductDetails(@Param('id') id: string) {
-    try {
-      const product = await this.productService.findByIdWithDetails(id);
-      return successResponse(product, 'Product fetched successfully');
-    } catch (error) {
-      console.log(error);
-      throw errorResponse(error, 'Failed to fetch product details');
-    }
-  }
-  @Get('product-featured')
-  async getFeaturedProducts() {
-    try {
-      const featuredProducts = await this.productService.getFeaturedProducts();
-      return successResponse(featuredProducts, 'Featured products fetched successfully');
-    } catch (error) {
-      console.error(error);
-      throw errorResponse(error, 'Failed to fetch featured products');
-    }
-  }
+
+
+
 
 }
