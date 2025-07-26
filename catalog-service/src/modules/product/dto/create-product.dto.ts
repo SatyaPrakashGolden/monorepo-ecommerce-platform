@@ -188,4 +188,9 @@ export class CreateProductDto {
   @IsOptional()
   offers?: string[];
 
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  relatedProducts?: string[];
 }
