@@ -29,8 +29,9 @@ export const CartItemSchema = SchemaFactory.createForClass(CartItem);
  */
 @Schema({ timestamps: true })
 export class Cart {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
-  user?: Types.ObjectId;
+ // MySQL User ID (number, not ObjectId)
+  @Prop({ type: Number, required: true })
+  userId: number;
 
   @Prop({ type: [CartItemSchema], default: [] })
   items: CartItem[];
