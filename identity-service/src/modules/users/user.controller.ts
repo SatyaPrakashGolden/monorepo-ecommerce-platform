@@ -7,55 +7,44 @@ import {
   Request,
 } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-
+import { RegisterUserDto } from './dto/create-user.dto';
+import { LoginUserDto } from './dto/login-user.dto';
 import { UserService } from './user.service';
-import { RegisterLoginDto } from './dto/register-login.dto';
 import { User } from './entities/user.entity';
 import { UserAuthGuard } from '../../auth/user.middleware';
+import { errorResponse, successResponse } from '../../utils/error.util';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post('register-login')
-  async registerOrLogin(
-    @Body() registerLoginDto: RegisterLoginDto,
-  ): Promise<{
-    message: string;
-    user: { id: number; emailId: string };
-    accessToken: string;
-    refreshToken: string;
-  }> {
-    return this.userService.registerOrLogin(registerLoginDto);
+  @MessagePattern({ cmd: 'register' })
+  async registerMessage(@Payload() registerDto: RegisterUserDto) {
+    try {
+      const result = await this.userService.register(registerDto);
+      return result;
+    } catch (error) {
+      throw errorResponse(error, 'User registration failed', 400, true);
+    }
   }
 
-  @MessagePattern({ cmd: 'register-login' })
-  async registerOrLoginMessagePattern(
-    @Payload() registerLoginDto: RegisterLoginDto,
-  ): Promise<{
-    message: string;
-    user: { id: number; emailId: string };
-    accessToken: string;
-    refreshToken: string;
-  }> {
-    return this.userService.registerOrLogin(registerLoginDto);
-  }
-
-  @MessagePattern({ cmd: 'getallusers' })
-  async getAllUsers(): Promise<{ msg: string; data: User[] }> {
-    return this.userService.findAll();
-  }
-
-  @Post('logout')
-  @UseGuards(UserAuthGuard)
-  async logout(@Request() req): Promise<{ message: string }> {
-    return this.userService.logout(req.user);
+  @MessagePattern({ cmd: 'login' })
+  async loginMessage(@Payload() loginDto: LoginUserDto) {
+    try {
+      const result = await this.userService.login(loginDto);
+      return result;
+    } catch (error) {
+      throw errorResponse(error, 'Login failed', 401, true);
+    }
   }
 
   @MessagePattern({ cmd: 'logout' })
-  async logoutMessagePattern(
-    @Payload() data: { id: number },
-  ): Promise<{ message: string }> {
-    return this.userService.logout(data);
+  async logoutMessagePattern(@Payload() data: { id: number }) {
+    try {
+      const result = await this.userService.logout(data);
+      return result;
+    } catch (error) {
+      throw errorResponse(error, 'Logout failed', 500, true);
+    }
   }
 }

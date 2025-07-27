@@ -56,7 +56,7 @@ async function bootstrap() {
   const PORT =  2002;
   await app.listen(PORT);
   console.log(`🚀 Identity Service is running on http://localhost:${PORT}`);
-  console.log('✅ TCP microservice started on port 6002');
+  console.log('✅ TCP microservice started on port 4002');
 }
 
 bootstrap();

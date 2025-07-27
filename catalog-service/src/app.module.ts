@@ -9,7 +9,8 @@ import { CategoryModule } from './modules/category/categoty.module'
 import { ProductModule } from './modules/product/product.module';
 import { ReviewModule } from './modules/review/review.module';
 import { OfferModule } from './modules/offer/offer.module'; // Import the new module
-
+import {WishlistModule} from './modules/wishlist/wishlist.module'
+import {CartModule} from './modules/cart/cart.module'
 @Module({
   imports: [
     MongooseModule.forRoot('mongodb+srv://satya:gvddB3fNptw1ABHW@cluster0.4zj2o.mongodb.net/fashion_store'),
@@ -20,7 +21,9 @@ import { OfferModule } from './modules/offer/offer.module'; // Import the new mo
     CategoryModule,
     ProductModule,
     ReviewModule,
-    OfferModule 
+    OfferModule ,
+    WishlistModule,
+    CartModule
   ],
 })
 export class AppModule {}
