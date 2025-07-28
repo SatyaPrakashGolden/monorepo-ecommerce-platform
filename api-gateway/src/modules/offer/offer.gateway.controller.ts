@@ -10,7 +10,7 @@ export class OfferController {
   ) {}
 
   @Post('add-offer')
-  async addOffer(@Body() offerData: CreateOfferDto) {
+  async addOffer(@Body() offerData: any) {
     try {
       const result = await this.offerGatewayService.createOffer(offerData);
       return successResponse(result, 'Offer added successfully');

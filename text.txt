@@ -1,0 +1,35 @@
+ Tables:
+users – User accounts
+
+addresses – User shipping/billing addresses
+
+orders – Order records
+
+order_items – Products in each order
+
+payments – Payment method, status, transaction ID
+
+coupons – Discount codes and rules
+
+user_roles – Roles like admin, customer, vendor
+
+product_stock_logs – Inventory change history
+
+
+------------
+products – Product details (name, price, variants, etc.)
+
+brands – Brand name, logo, country
+
+catalogs – Product groupings (e.g., "Men's Collection")
+
+wishlists – User wishlists (userId + products)
+
+reviews – Product ratings & comments
+
+carts – Temporary cart items for each user
+
+banners – Homepage banners or promotions
+
+product_questions – User-submitted product Q&A
+

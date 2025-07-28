@@ -23,7 +23,6 @@ export class Brand {
   @Prop()
   website: string;
 
-
 }
 
 export const BrandSchema = SchemaFactory.createForClass(Brand);

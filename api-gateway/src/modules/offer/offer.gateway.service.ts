@@ -9,7 +9,7 @@ export class OfferGatewayService {
     @Inject('CATALOG_SERVICE') private readonly offerClient: ClientProxy,
   ) {}
 
-  async createOffer(createOfferDto: CreateOfferDto) {
+  async createOffer(createOfferDto: any) {
     return await firstValueFrom(
       this.offerClient.send({ cmd: 'add_offer' }, createOfferDto),
     );

@@ -10,7 +10,7 @@ import { Grid, List } from "lucide-react"
 interface Product {
   id: number
   name: string
-  price: number
+  discountPrice: number
   originalPrice?: number
   image: string
   rating: number
@@ -46,7 +46,7 @@ export function ProductListing({ category, title }: ProductListingProps) {
     {
       id: 1,
       name: "Classic Cotton T-Shirt",
-      price: 29.99,
+     discountPrice: 29.99,
       originalPrice: 39.99,
       image: "/placeholder.svg?height=400&width=300",
       rating: 4.5,
@@ -63,7 +63,7 @@ export function ProductListing({ category, title }: ProductListingProps) {
     {
       id: 2,
       name: "Elegant Evening Dress",
-      price: 299.99,
+      discountPrice: 299.99,
       originalPrice: 399.99,
       image: "/placeholder.svg?height=400&width=300",
       rating: 4.8,
@@ -80,7 +80,7 @@ export function ProductListing({ category, title }: ProductListingProps) {
     {
       id: 3,
       name: "Designer Leather Jacket",
-      price: 199.99,
+     discountPrice: 199.99,
       image: "/placeholder.svg?height=400&width=300",
       rating: 4.6,
       reviews: 156,
@@ -96,7 +96,7 @@ export function ProductListing({ category, title }: ProductListingProps) {
     {
       id: 4,
       name: "Summer Floral Dress",
-      price: 79.99,
+     discountPrice: 79.99,
       image: "/placeholder.svg?height=400&width=300",
       rating: 4.7,
       reviews: 203,
@@ -112,7 +112,7 @@ export function ProductListing({ category, title }: ProductListingProps) {
     {
       id: 5,
       name: "Kids Rainbow Hoodie",
-      price: 49.99,
+     discountPrice: 49.99,
       image: "/placeholder.svg?height=400&width=300",
       rating: 4.9,
       reviews: 67,
@@ -128,7 +128,7 @@ export function ProductListing({ category, title }: ProductListingProps) {
     {
       id: 6,
       name: "Luxury Handbag",
-      price: 149.99,
+     discountPrice: 149.99,
       originalPrice: 199.99,
       image: "/placeholder.svg?height=400&width=300",
       rating: 4.4,
@@ -197,10 +197,10 @@ export function ProductListing({ category, title }: ProductListingProps) {
     // Sort products
     switch (sortBy) {
       case "price-low":
-        products.sort((a, b) => a.price - b.price)
+        products.sort((a, b) => a.discountPrice - b.discountPrice)
         break
       case "price-high":
-        products.sort((a, b) => b.price - a.price)
+        products.sort((a, b) => b.discountPrice - a.discountPrice)
         break
       case "rating":
         products.sort((a, b) => b.rating - a.rating)

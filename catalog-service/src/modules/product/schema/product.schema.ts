@@ -7,7 +7,8 @@ export enum ProductStatus {
   DRAFT = 'draft',
   ACTIVE = 'active',
   INACTIVE = 'inactive',
-  OUT_OF_STOCK = 'out_of_stock'
+  OUT_OF_STOCK = 'out_of_stock',
+    SALE = 'sale'
 }
 
 export enum Gender {
@@ -16,6 +17,26 @@ export enum Gender {
   UNISEX = 'unisex',
   KIDS = 'kids'
 }
+
+export enum SizeName {
+  XS = 'XS',
+  S = 'S',
+  M = 'M',
+  L = 'L',
+  XL = 'XL',
+  XXL = 'XXL',
+}
+
+@Schema({ _id: false })
+export class Size {
+  @Prop({ type: String, enum: SizeName, required: true })
+  name: SizeName;
+
+  @Prop({ type: Boolean, default: false })
+  inStock: boolean;
+}
+
+export const SizeSchema = SchemaFactory.createForClass(Size);
 
 @Schema({ timestamps: true })
 export class Product {
@@ -37,8 +58,13 @@ export class Product {
   @Prop({ type: Types.ObjectId, ref: 'Brand', required: true })
   brand: Types.ObjectId;
 
+
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], required: true })
   categories: Types.ObjectId[];
+
+  @Prop([{ type: Types.ObjectId, ref: 'Product' }])
+  relatedProducts: Types.ObjectId[];
+
 
   @Prop({ required: true, enum: Gender })
   gender: Gender;
@@ -47,13 +73,8 @@ export class Product {
   status: ProductStatus;
 
   @Prop({ required: true })
-  basePrice: number;
+  originalPrice: number;
 
-  @Prop()
-  discountPrice: number;
-
-  @Prop({ default: 0 })
-  discountPercentage: number;
 
   @Prop([String])
   images: string[];
@@ -65,18 +86,11 @@ export class Product {
   specifications: Map<string, string>;
 
 
-  @Prop({
-    type: [String],
-    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
-    default: [],
-  })
-  sizes: string[];
+  @Prop({ type: [SizeSchema], default: [] })
+  sizes: Size[];
 
   @Prop()
   material: string;
-
-  @Prop()
-  careInstructions: string;
 
   @Prop()
   origin: string;
@@ -91,27 +105,23 @@ export class Product {
     height: number;
   };
 
-  @Prop({ type: Types.ObjectId, ref: 'Offer' })
-  offer: Types.ObjectId;
+  @Prop()
+  inStock: boolean;
+
 
 
   @Prop({ default: 0 })
-  totalStock: number;
+  stockCount: number;
 
   @Prop({ default: 0 })
   soldCount: number;
 
-  @Prop({ default: 0 })
-  viewCount: number;
+
 
   @Prop({ default: 0 })
   wishlistCount: number;
 
-  @Prop({ default: 0 })
-  rating: number;
 
-  @Prop({ default: 0 })
-  reviewCount: number;
 
   @Prop({ default: true })
   isReturnable: boolean;
@@ -119,8 +129,7 @@ export class Product {
   @Prop({ default: 7 })
   returnDays: number;
 
-  @Prop({ default: false })
-  isFeatured: boolean;
+
 
   @Prop({ default: false })
   isNewArrival: boolean;
@@ -128,11 +137,10 @@ export class Product {
   @Prop([String])
   features: string[];
 
-  @Prop({ type: Map, of: String })
-  specs: Map<string, string>;
 
-  @Prop({ type: Map, of: String })
-  care: Map<string, string>;
+  @Prop([String])
+  careInstructions: string[];
+
 
   @Prop([{ type: Types.ObjectId, ref: 'Review' }])
   reviews: Types.ObjectId[];
@@ -140,19 +148,25 @@ export class Product {
   @Prop([{
     type: {
       name: { type: String, required: true },
-      code: { type: String, required: true },
-      image: { type: String },
+      value: { type: String, required: true },
+      inStock: { type: Boolean, default: true }
     }
   }])
-  colors: { name: string; code: string; image?: string }[];
+  colors: { name: string; value: string; inStock: boolean }[];
 
+  @Prop({ default: false })
+  isNew: boolean;
+
+  @Prop({ default: false })
+  isSale: boolean;
+
+  @Prop([{ type: Types.ObjectId, ref: 'Offer' }])
+  offers: Types.ObjectId[];
 
 
   @Prop({ type: Date })
   launchDate: Date;
 
-  @Prop({ type: Date })
-  discontinueDate: Date;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

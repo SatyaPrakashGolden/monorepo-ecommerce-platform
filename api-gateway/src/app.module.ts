@@ -4,13 +4,20 @@ import { CategoryGatewayModule } from './modules/category/category.gateway.modul
 import { ProductGatewayModule } from './modules/product/product.gateway.module';
 import { RatingGatewayModule } from './modules/rating/rating.gateway.module';
 import { OfferGatewayModule } from './modules/offer/offer.gateway.module';
+import { UserGatewayModule } from './modules/user/user.gateway.module'
+import { WishlistGatewayModule } from './modules/wishlist/wishlist.gateway.module'
+import { CartGatewayModule } from './modules/cart/cart.gateway.module'
+
 @Module({
   imports: [
     BrandGatewayModule,
     CategoryGatewayModule,
     ProductGatewayModule,
     RatingGatewayModule,
-    OfferGatewayModule 
+    OfferGatewayModule,
+    UserGatewayModule,
+    WishlistGatewayModule,
+    CartGatewayModule
   ],
 })
-export class AppModule {}
+export class AppModule { }

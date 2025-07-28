@@ -1,0 +1,8 @@
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# Dependency lock file (optional; decide based on your workflow)
+package-lock.json

@@ -7,7 +7,8 @@ import {
   UploadedFile,
   UseInterceptors,
   BadRequestException,
-  Controller, Post, Body
+  Controller, Post, Body,
+  Get, Param
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { uploadFileToS3 } from '../../utils/s3-upload';
@@ -16,15 +17,65 @@ import { uploadFileToS3 } from '../../utils/s3-upload';
 export class ProductController {
   constructor(private readonly productService: ProductService) { }
 
+
+  @MessagePattern({ cmd: 'product_details' })
+  async getProductDetailsMessage(@Payload() productId: string) {
+    try {
+      const result = await this.productService.findByIdWithDetails(productId);
+      return result;
+    } catch (error) {
+      console.error(error);
+      throw errorResponse(error, 'Failed to fetch product details via message pattern');
+    }
+  }
+
+
+  @MessagePattern({ cmd: 'product_related' })
+  async getRelatedProductsMessage(@Payload() productId: string) {
+    try {
+      const result = await this.productService.getRelatedProducts(productId);
+      return result
+    } catch (error) {
+      console.error(error);
+      throw errorResponse(error, 'Failed to fetch related products');
+    }
+  }
+
+
+  @MessagePattern({ cmd: 'product_featured' })
+  async getFeaturedProductsMessage() {
+    try {
+      const result = await this.productService.getFeaturedProducts();
+      return result;
+    } catch (error) {
+      console.log(error);
+      throw errorResponse(error, 'Failed to fetch featured products');
+    }
+  }
+
   @MessagePattern({ cmd: 'add_product' })
   async addProduct(@Payload() createProductDto: CreateProductDto) {
     try {
       const result = await this.productService.create(createProductDto);
-      return successResponse(result, 'Product created successfully');
+      return result;
     } catch (error) {
+      console.log(error)
       throw errorResponse(error, 'Failed to create product');
     }
   }
+
+  @Post('add')
+  async addProductHttp(@Body() createProductDto: CreateProductDto) {
+    try {
+      const result = await this.productService.create(createProductDto);
+      return successResponse(result, 'Product created successfully');
+    } catch (error) {
+      console.log(error);
+      throw errorResponse(error, 'Failed to create product');
+    }
+  }
+
+
   @Post('upload-image')
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
@@ -39,4 +90,10 @@ export class ProductController {
       throw new BadRequestException('Image upload failed');
     }
   }
+
+
+
+
+
+
 }
