@@ -3,13 +3,15 @@ import {
   BadRequestException,
   UnauthorizedException,
   InternalServerErrorException,
+  ConflictException
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
-
+import {RegisterUserDto} from './dto/create-user.dto'
+import {LoginUserDto} from './dto/login-user.dto'
 import { User } from './entities/user.entity';
-import { RegisterLoginDto } from './dto/register-login.dto';
+import * as bcrypt from 'bcrypt';
 import redisClient from '../../redis/redisClient';
 
 @Injectable()
@@ -20,33 +22,30 @@ export class UserService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async registerOrLogin(
-    registerLoginDto: RegisterLoginDto,
-  ): Promise<{
-    message: string;
-    user: { id: number; emailId: string };
-    accessToken: string;
-    refreshToken: string;
-  }> {
-    const { emailId, uniqueId } = registerLoginDto;
 
-    let user = await this.userRepository.findOne({
-      where: [{ emailId }, { uniqueId }],
-    });
 
-    if (!user) {
-      try {
-        user = this.userRepository.create(registerLoginDto as Partial<User>);
-        user = await this.userRepository.save(user);
+async login(loginDto: LoginUserDto): Promise<{
+  message: string;
+  user: { id: number; emailId: string };
+  accessToken: string;
+  refreshToken: string;
+}> {
+  const { emailId, password } = loginDto;
 
-        return await this.generateTokensAndReturn(user, 'User registered successfully');
-      } catch (error) {
-        throw new BadRequestException('User registration failed');
-      }
-    }
+  const user = await this.userRepository.findOne({ where: { emailId } });
 
-    return await this.generateTokensAndReturn(user, 'User logged in successfully');
+  if (!user) {
+    throw new UnauthorizedException('Invalid email or password');
   }
+
+  const passwordMatch = await bcrypt.compare(password, user.password);
+  if (!passwordMatch) {
+    throw new UnauthorizedException('Invalid email or password');
+  }
+
+  return this.generateTokensAndReturn(user, 'Login successful');
+}
+
 
   private async generateTokensAndReturn(
     user: User,
@@ -106,11 +105,31 @@ export class UserService {
     throw new InternalServerErrorException('Logout failed: token deletion error');
   }
 
-  async findAll(): Promise<{ msg: string; data: User[] }> {
-    const users = await this.userRepository.find();
+   async register(registerDto: RegisterUserDto): Promise<{ message: string; userId: number }> {
+    const { emailId, password, ...rest } = registerDto;
+
+    // Check if user exists
+    const existingUser = await this.userRepository.findOne({ where: { emailId } });
+    if (existingUser) {
+      throw new ConflictException('Email already registered');
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create and save user
+    const newUser = this.userRepository.create({
+      ...rest,
+      emailId,
+      password: hashedPassword,
+    });
+
+    const savedUser = await this.userRepository.save(newUser);
+
     return {
-      msg: 'success',
-      data: users,
+      message: 'User registered successfully',
+      userId: savedUser.id,
     };
   }
+  
 }

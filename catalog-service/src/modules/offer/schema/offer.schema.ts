@@ -1,27 +1,48 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-
-export type OfferDocument = Offer & Document;
+import { Document, Types } from 'mongoose';
+import * as mongoose from 'mongoose';
 
 @Schema({ timestamps: true })
 export class Offer {
-  @Prop({ required: true, unique: true, uppercase: true })
-  code: string;
+  @Prop({ required: true })
+  name: string;
+
+  @Prop()
+  description?: string;
+
+  @Prop({ required: true, enum: ['percentage', 'flat'] })
+  discountType: 'percentage' | 'flat';
 
   @Prop({ required: true })
-  description: string;
-
-  @Prop({ required: true, min: 0, max: 100 })
-  discountPercentage: number;
+  discountValue: number;
 
   @Prop({ required: true })
-  validFrom: Date;
+  startDate: Date;
 
   @Prop({ required: true })
-  validUntil: Date;
+  endDate: Date;
+
+  @Prop({ default: false })
+  appliesToAllProducts: boolean;
+
+  @Prop([{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }])
+  appliesToProductIds?: Types.ObjectId[];
+
+  @Prop([{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }])
+  appliesToCategories?: Types.ObjectId[];
+
+  @Prop([{ type: mongoose.Schema.Types.ObjectId, ref: 'Brand' }])
+  appliesToBrands?: Types.ObjectId[];
 
   @Prop({ default: true })
   isActive: boolean;
+
+  @Prop({ default: false })
+  isFestivalOffer: boolean;
+
+  @Prop({ default: false })
+  isStackable: boolean;
 }
 
+export type OfferDocument = Offer & Document;
 export const OfferSchema = SchemaFactory.createForClass(Offer);

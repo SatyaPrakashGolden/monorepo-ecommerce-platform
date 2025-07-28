@@ -1,26 +1,69 @@
-import { IsString, IsNotEmpty, IsNumber, IsDateString, IsBoolean, IsOptional, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsBoolean,
+  IsDate,
+  IsArray,
+  IsMongoId,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
+export enum DiscountType {
+  PERCENTAGE = 'percentage',
+  FLAT = 'flat',
+}
 export class CreateOfferDto {
   @IsString()
-  @IsNotEmpty()
-  code: string;
+  name: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  description: string;
+  description?: string;
+
+  @IsEnum(['percentage', 'flat'])
+  discountType: 'percentage' | 'flat';
 
   @IsNumber()
-  @Min(0)
-  @Max(100)
-  discountPercentage: number;
+  discountValue: number;
 
-  @IsDateString()
-  validFrom: string;
+  @Type(() => Date)
+  @IsDate()
+  startDate: Date;
 
-  @IsDateString()
-  validUntil: string;
+  @Type(() => Date)
+  @IsDate()
+  endDate: Date;
 
-  @IsBoolean()
   @IsOptional()
-  isActive?: boolean;
+  @IsBoolean()
+  appliesToAllProducts: boolean = false;
+
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  appliesToProductIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  appliesToCategories?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  appliesToBrands?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  isActive: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  isFestivalOffer: boolean = false;
+
+  @IsOptional()
+  @IsBoolean()
+  isStackable: boolean = false;
 }

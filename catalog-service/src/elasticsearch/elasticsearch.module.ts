@@ -4,8 +4,8 @@ import { ElasticsearchService } from './elasticsearch.service';
 import { SearchController } from './elasticsearch.controller';
 
 @Module({
-  controllers: [SearchController],  // 👈 Add controller
+  controllers: [SearchController],  
   providers: [ElasticsearchService],
-  exports: [ElasticsearchService],         // 👈 So it can be used in other modules
+  exports: [ElasticsearchService],         
 })
 export class ElasticsearchModule {}

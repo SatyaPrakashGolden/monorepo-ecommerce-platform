@@ -50,7 +50,7 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
 
   const clearAllFilters = () => {
     onFiltersChange({
-      priceRange: [0, 500],
+      priceRange: [0, 3000],
       sizes: [],
       colors: [],
       brands: [],

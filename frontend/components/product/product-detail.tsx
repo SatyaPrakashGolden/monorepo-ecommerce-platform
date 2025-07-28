@@ -1,6 +1,7 @@
+// /home/satya/myproject/frontend/components/product/product-detail.tsx
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Heart, ShoppingBag, Star, Truck, Shield, RotateCcw, Share2, Plus, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,71 +14,69 @@ interface ProductDetailProps {
   productId: string
 }
 
+interface Product {
+  id: string
+  name: string
+  description: string
+  sku: string
+  originalPrice: number
+  discountPrice: number
+  rating: number
+  reviews: number
+  brand: string
+  inStock: boolean
+  stockCount: number
+  images: string[]
+  sizes: { name: string; inStock: boolean }[]
+  colors: { name: string; value: string; inStock: boolean }[]
+  features: string[]
+  specifications: Record<string, string>
+  careInstructions: string[]
+  isReturnable: boolean // Added
+  returnDays: number // Added
+}
+
 export function ProductDetail({ productId }: ProductDetailProps) {
+  const [product, setProduct] = useState<Product | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedSize, setSelectedSize] = useState("")
   const [selectedColor, setSelectedColor] = useState("")
   const [quantity, setQuantity] = useState(1)
   const [isWishlisted, setIsWishlisted] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock product data - in real app, this would come from API
-  const product = {
-    id: productId,
-    name: "Elegant Evening Dress",
-    price: 299.99,
-    originalPrice: 399.99,
-    rating: 4.8,
-    reviews: 124,
-    inStock: true,
-    stockCount: 8,
-    brand: "Luxury Line",
-    sku: "LED-001",
-    images: [
-      "/placeholder.svg?height=600&width=500",
-      "/placeholder.svg?height=600&width=500",
-      "/placeholder.svg?height=600&width=500",
-      "/placeholder.svg?height=600&width=500",
-    ],
-    sizes: [
-      { name: "XS", inStock: true },
-      { name: "S", inStock: true },
-      { name: "M", inStock: true },
-      { name: "L", inStock: false },
-      { name: "XL", inStock: true },
-    ],
-    colors: [
-      { name: "Black", value: "#000000", inStock: true },
-      { name: "Navy", value: "#1e3a8a", inStock: true },
-      { name: "Burgundy", value: "#7c2d12", inStock: false },
-    ],
-    description:
-      "This elegant evening dress is perfect for special occasions. Made from premium materials with attention to detail, it features a flattering silhouette that enhances your natural beauty. The dress is designed with comfort in mind while maintaining a sophisticated look.",
-    features: [
-      "Premium fabric blend (70% Silk, 30% Cotton)",
-      "Professional tailoring with attention to detail",
-      "Comfortable fit with stretch panels",
-      "Hidden zipper closure",
-      "Fully lined interior",
-      "Dry clean only",
-    ],
-    specifications: {
-      Material: "70% Silk, 30% Cotton",
-      Fit: "Regular",
-      Length: "Midi",
-      "Sleeve Type": "Sleeveless",
-      Neckline: "V-Neck",
-      Closure: "Hidden Zipper",
-    },
-    careInstructions: [
-      "Dry clean only",
-      "Do not bleach",
-      "Iron on low heat if needed",
-      "Store on padded hangers",
-      "Avoid direct sunlight when storing",
-    ],
+  useEffect(() => {
+    async function fetchProduct() {
+      try {
+        setIsLoading(true)
+        const response = await fetch(`http://localhost:2000/api/product/product-details?productId=${productId}`)
+        const data = await response.json()
+        
+        if (data.status && data.data) {
+          setProduct(data.data)
+        } else {
+          setError("Failed to load product details")
+        }
+      } catch (err) {
+        setError("Error fetching product details")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProduct()
+  }, [productId])
+
+  if (isLoading) {
+    return <div>Loading...</div>
   }
 
-  const discountPercentage = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  if (error || !product) {
+    return <div>{error || "Product not found"}</div>
+  }
+
+  const discountPercentage = Math.round(((product.originalPrice - product.discountPrice) / product.originalPrice) * 100)
 
   const getStockStatus = () => {
     if (product.stockCount === 0) return { label: "Out of Stock", color: "bg-red-100 text-red-800" }
@@ -164,10 +163,10 @@ export function ProductDetail({ productId }: ProductDetailProps) {
 
           {/* Price */}
           <div className="flex items-center gap-3">
-            <span className="text-3xl font-bold text-gray-900">${product.price}</span>
-            <span className="text-xl text-gray-500 line-through">${product.originalPrice}</span>
+            <span className="text-3xl font-bold text-gray-900">₹{product.discountPrice}</span>
+            <span className="text-xl text-gray-500 line-through">₹{product.originalPrice}</span>
             <Badge className="gradient-accent-gold text-white border-0">
-              Save ${(product.originalPrice - product.price).toFixed(2)}
+              Save ₹{(product.originalPrice - product.discountPrice).toFixed(2)}
             </Badge>
           </div>
         </div>
@@ -256,7 +255,7 @@ export function ProductDetail({ productId }: ProductDetailProps) {
             disabled={!selectedSize || !selectedColor || !product.inStock}
           >
             <ShoppingBag className="h-5 w-5 mr-2" />
-            Add to Cart - ${(product.price * quantity).toFixed(2)}
+            Add to Cart - ₹{(product.discountPrice * quantity).toFixed(2)}
           </Button>
 
           <div className="grid grid-cols-2 gap-3">
@@ -287,7 +286,7 @@ export function ProductDetail({ productId }: ProductDetailProps) {
           </div>
           <div className="flex items-center gap-2 text-sm">
             <RotateCcw className="h-4 w-4 text-purple-600" />
-            <span>30-Day Returns</span>
+            <span>{product.isReturnable ? `${product.returnDays}-Day Returns` : "Non-Returnable"}</span>
           </div>
         </div>
 
