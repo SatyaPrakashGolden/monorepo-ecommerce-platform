@@ -1,3 +1,4 @@
+// /home/satya/myproject/order-service/src/modules/order/entities/order.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -9,6 +10,8 @@ import {
 export enum OrderStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
 }
 
 @Entity('orders')

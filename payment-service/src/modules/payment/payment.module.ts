@@ -1,18 +1,12 @@
-// /home/satya/carbike360evBackend/ecommerceBackend/payment-service/src/modules/payment/payment.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { PaymentService } from './payment.service';
+import { Payment } from './entities/payment.entity';
 import { PaymentController } from './payment.controller';
-import { KafkaModule } from '../../kafka/kafka.module';
-import { Payment } from './entities/payment.entity'; 
-
+import { PaymentService } from './payment.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Payment ]), // ✅ Corrected
-    KafkaModule, // ✅ Assuming this provides 'KAFKA_SERVICE'
-  ],
-  providers: [PaymentService],
+  imports: [TypeOrmModule.forFeature([Payment])],
   controllers: [PaymentController],
+  providers: [PaymentService],
 })
 export class PaymentModule {}

@@ -1,11 +1,24 @@
-// /home/satya/carbike360evBackend/ecommerceBackend/payment-service/src/modules/payment/dto/create-order.dto.ts
-import { IsNumber, IsOptional, IsIn } from 'class-validator';
+import { IsNumber, IsString, IsOptional, IsEmail } from 'class-validator';
 
-export class CreateOrderDto {
-  @IsNumber({}, { message: 'Amount must be a number' })
-  amount: number; // amount in rupees (INR)
+export class CreatePaymentDto {
+  @IsNumber()
+  orderId: number;
 
+  @IsNumber()
+  amount: number;
+
+  @IsString()
   @IsOptional()
-  @IsIn(['INR'], { message: 'Currency must be INR' })
-  currency?: string; // default 'INR'
+  currency: string = 'INR';
+
+  @IsString()
+  paymentMethod: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  contact?: string;
 }

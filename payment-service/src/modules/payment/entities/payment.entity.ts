@@ -12,12 +12,12 @@ export class Payment {
   id: number; // Auto-increment primary key
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-payment_id?: string;
+  payment_id?: string;
 
   @Column({ type: 'varchar', default: 'payment' })
   entity: string;
-@Column({ type: 'decimal', nullable: true })
-amount?: number;
+  @Column({ type: 'decimal', nullable: true })
+  amount?: number;
 
 
   @Column({ type: 'varchar', length: 10 })
