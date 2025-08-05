@@ -1,51 +1,19 @@
-import {
-  IsNotEmpty,
-  IsNumber,
-  IsString,
-  IsOptional,
-  IsIn,
-  IsInt,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import { OrderStatus } from '../entities/order.entity'; 
+import { IsNumber, IsString, IsOptional } from 'class-validator';
 
 export class CreateOrderDto {
-  @IsInt()
-  @Type(() => Number)
-  @IsNotEmpty()
-  user_id: number;
+  @IsNumber()
+  userId: number;
 
   @IsString()
-  @IsNotEmpty()
-  seller_id: string;
+  sellerId: string;
 
   @IsString()
-  @IsNotEmpty()
-  variant_id: string;
-
-  @IsString()
-  @IsNotEmpty()
-  total_amount: string;
-
-  @IsString()
-  @IsOptional()
-  @IsIn(['INR', 'USD', 'EUR'])
-  currency?: string = 'INR';
-
-  @IsOptional()
-  @IsIn(Object.values(OrderStatus))
-  status?: OrderStatus = OrderStatus.PENDING;
-
-  @IsString()
-  @IsOptional()
-  razorpay_order_id?: string;
-
-  @IsString()
-  @IsOptional()
-  receipt?: string;
+  variantId: string;
 
   @IsNumber()
-  @Type(() => Number)
+  amount: number;
+
+  @IsString()
   @IsOptional()
-  razorpay_created_at?: number;
+  currency: string = 'INR';
 }

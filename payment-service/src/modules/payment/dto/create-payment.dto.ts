@@ -1,3 +1,4 @@
+// /home/satya/myproject/payment-service/src/modules/payment/dto/create-payment.dto.ts
 import { IsString, IsInt, IsBoolean, IsOptional, IsEmail, IsNumber, IsDate, IsDateString } from 'class-validator';
 
 export class CreatePaymentDto {

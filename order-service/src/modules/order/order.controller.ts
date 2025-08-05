@@ -1,43 +1,31 @@
-// /home/satya/ecommercebackend/ecommerceBackend/order-service/src/modules/order/order.controller.ts
-import {
-  Controller,
-  Post,
-  Body,
-  Get,
-  Param,
-  Put,
-  Delete,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Post, Body, Get, Param } from '@nestjs/common';
 import { OrderService } from './order.service';
+import { SagaOrchestrator } from '../saga/saga.orchestrator';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { Order } from './entities/order.entity';
-import { EventPattern, Payload } from '@nestjs/microservices';
 
-@Controller('order')
+@Controller('orders')
 export class OrderController {
-  constructor(private readonly orderService: OrderService) { }
+  constructor(
+    private readonly orderService: OrderService,
+    private readonly sagaOrchestrator: SagaOrchestrator,
+  ) {}
 
-  @Post('creat-order')
-  async createOrder(@Body() createOrderDto: CreateOrderDto): Promise<Order> {
-    return this.orderService.createOrder(createOrderDto);
+  @Post()
+  async createOrder(@Body() createOrderDto: CreateOrderDto) {
+    const order = await this.orderService.createOrder(createOrderDto);
+    const sagaId = await this.sagaOrchestrator.executeSaga('PAYMENT_SAGA', {
+      orderId: order.id,
+      amount: createOrderDto.amount,
+      currency: createOrderDto.currency,
+      paymentMethod: createOrderDto.paymentMethod || 'card',
+      email: createOrderDto.email,
+      contact: createOrderDto.contact,
+    });
+    return { orderId: order.id, sagaId, razorpayOrderId: order.razorpay_order_id };
   }
 
-  @EventPattern('payment-order-created')
-  async handlePurchaseProduct(@Payload() message: any) {
-    const orderData: CreateOrderDto = message.value ?? message; // depending on your Kafka client config
-    console.log('✅ Purchase Event Received in Order Service:', orderData);
-    return this.orderService.createOrder(orderData);
+  @Get(':sagaId/status')
+  async getSagaStatus(@Param('sagaId') sagaId: string) {
+    return this.sagaOrchestrator.getSagaStatus(sagaId);
   }
-
-  @EventPattern('verify-payment')
-  async handlePaymentVerification(@Payload() message: any) {
-    const data = message.value ?? message;
-    const { razorpay_order_id } = data;
-
-    console.log('✅ Payment Verified Event Received in Order Service:', razorpay_order_id);
-
-    await this.orderService.markOrderAsPaid(razorpay_order_id);
-  }
-
 }
