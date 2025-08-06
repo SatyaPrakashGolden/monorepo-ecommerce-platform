@@ -107,12 +107,8 @@ export class Product {
 
   @Prop()
   inStock: boolean;
-
-
-
   @Prop({ default: 0 })
   stockCount: number;
-
   @Prop({ default: 0 })
   soldCount: number;
 
