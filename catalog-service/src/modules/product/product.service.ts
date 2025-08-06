@@ -8,12 +8,54 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { uploadFileToS3 } from '../../utils/s3-upload';
 import { Types } from 'mongoose';
 import { ProductStatus } from './schema/product.schema'
+import { ReserveStockDto } from './dto/reserve-stock.dto';
 @Injectable()
 export class ProductService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(Offer.name) private offerModel: Model<OfferDocument>,
   ) { }
+
+  // Inside ProductService
+  async reserveStock(dto: ReserveStockDto): Promise<Product> {
+    const { productId, quantity } = dto;
+
+    const product = await this.productModel.findById(productId);
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    if (product.stockCount < quantity) {
+      throw new BadRequestException('Not enough stock available');
+    }
+    product.stockCount -= quantity;
+    product.soldCount += quantity;
+    product.inStock = product.stockCount > 0;
+    return await product.save();
+  }
+
+  // Inside ProductService
+  async releaseStock(dto: ReserveStockDto): Promise<Product> {
+    const { productId, quantity } = dto;
+
+    const product = await this.productModel.findById(productId);
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    // Optional: Prevent releasing more than sold
+    if (product.soldCount < quantity) {
+      throw new BadRequestException('Release quantity exceeds sold count');
+    }
+
+    product.stockCount += quantity;
+    product.soldCount -= quantity;
+    product.inStock = product.stockCount > 0;
+
+    return await product.save();
+  }
 
 
   async getRelatedProducts(productId: string): Promise<any[]> {

@@ -11,7 +11,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   port: Number(process.env.DB_PORT) || 3306, // MySQL default port
   username: process.env.DB_USERNAME || 'satya', // your MySQL user
   password: process.env.DB_PASSWORD || 'Satya@123',
-  database: process.env.DB_NAME || 'ecommerce_uat',
+  database: process.env.DB_NAME || 'fashion_store',
   entities: [
     Order,
   ],

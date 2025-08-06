@@ -92,7 +92,7 @@ export class Payment {
   @Column({ type: 'varchar', length: 100, nullable: true })
   bank_transaction_id?: string;
 
-  @Column({ type: 'bigint', default: 0 }) // Default 0 for existing data safety
+  @Column({ type: 'bigint', default: 0 }) 
   payment_created_at: number;
 
   @CreateDateColumn({ type: 'timestamp' })

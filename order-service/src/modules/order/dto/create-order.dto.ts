@@ -1,4 +1,5 @@
-import { IsNumber, IsString, IsOptional } from 'class-validator';
+import { IsNumber, IsString, IsOptional, IsEnum } from 'class-validator';
+import { OrderStatus } from '../entities/order.entity';
 
 export class CreateOrderDto {
   @IsNumber()
@@ -16,4 +17,26 @@ export class CreateOrderDto {
   @IsString()
   @IsOptional()
   currency: string = 'INR';
+
+  @IsOptional()
+  @IsEnum(OrderStatus)
+  status?: OrderStatus;
+
+  @IsString()
+  name: string;
+
+  @IsNumber()
+  price: number;
+
+  @IsString()
+  image: string;
+
+  @IsString()
+  size: string;
+
+  @IsString()
+  color: string;
+
+  @IsNumber()
+  quantity: number;
 }

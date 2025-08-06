@@ -1,5 +1,4 @@
-// /home/satya/myproject/payment-service/src/modules/payment/dto/create-payment.dto.ts
-import { IsString, IsInt, IsBoolean, IsOptional, IsEmail, IsNumber, IsDate, IsDateString } from 'class-validator';
+import { IsString, IsNumber, IsBoolean, IsOptional, IsEmail } from 'class-validator';
 
 export class CreatePaymentDto {
   @IsString()
@@ -8,7 +7,7 @@ export class CreatePaymentDto {
   @IsString()
   entity: string;
 
-  @IsInt()
+  @IsNumber()
   amount: number;
 
   @IsString()
@@ -30,7 +29,7 @@ export class CreatePaymentDto {
   @IsString()
   method: string;
 
-  @IsInt()
+  @IsNumber()
   amount_refunded: number;
 
   @IsOptional()
@@ -69,11 +68,11 @@ export class CreatePaymentDto {
   contact?: string;
 
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   fee?: number;
 
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   tax?: number;
 
   @IsOptional()

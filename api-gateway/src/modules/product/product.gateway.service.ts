@@ -6,7 +6,7 @@ import { firstValueFrom } from 'rxjs';
 export class ProductGatewayService {
   constructor(
     @Inject('CATALOG_SERVICE') private readonly productClient: ClientProxy,
-  ) {}
+  ) { }
 
   async createProduct(productData: Record<string, any>) {
     return await firstValueFrom(
@@ -16,19 +16,32 @@ export class ProductGatewayService {
 
   async getFeaturedProducts() {
     return await firstValueFrom(
-      this.productClient.send({ cmd: 'product_featured' }, {}), 
+      this.productClient.send({ cmd: 'product_featured' }, {}),
     );
   }
 
-async getRelatedProducts(productId: string) {
-  return await firstValueFrom(
-    this.productClient.send({ cmd: 'product_related' }, productId),
-  );
-}
+  async getRelatedProducts(productId: string) {
+    return await firstValueFrom(
+      this.productClient.send({ cmd: 'product_related' }, productId),
+    );
+  }
 
   async findByIdWithDetails(productId: string) {
     return await firstValueFrom(
       this.productClient.send({ cmd: 'product_details' }, productId),
     );
   }
+  async reserveStock(productId: string, quantity: number) {
+    return await firstValueFrom(
+      this.productClient.send({ cmd: 'reserve_stock' }, { productId, quantity }),
+    );
+  }
+
+  async releaseStock(productId: string, quantity: number) {
+    return await firstValueFrom(
+      this.productClient.send({ cmd: 'release_stock' }, { productId, quantity }),
+    );
+  }
+
+
 }
