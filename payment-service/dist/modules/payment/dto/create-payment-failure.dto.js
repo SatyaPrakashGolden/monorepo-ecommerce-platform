@@ -12,12 +12,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreatePaymentFailureDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreatePaymentFailureDto {
-    orderId;
+    id;
     paymentId;
     errorCode;
     errorDescription;
     errorReason;
     type;
+    userId;
 }
 exports.CreatePaymentFailureDto = CreatePaymentFailureDto;
 __decorate([
@@ -25,7 +26,7 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.MaxLength)(50),
     __metadata("design:type", String)
-], CreatePaymentFailureDto.prototype, "orderId", void 0);
+], CreatePaymentFailureDto.prototype, "id", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
@@ -55,4 +56,9 @@ __decorate([
     (0, class_validator_1.MaxLength)(30),
     __metadata("design:type", String)
 ], CreatePaymentFailureDto.prototype, "type", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", Number)
+], CreatePaymentFailureDto.prototype, "userId", void 0);
 //# sourceMappingURL=create-payment-failure.dto.js.map

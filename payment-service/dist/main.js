@@ -34,14 +34,14 @@ async function bootstrap() {
         transport: microservices_1.Transport.TCP,
         options: {
             host: 'localhost',
-            port: 6006,
+            port: 4004,
         },
     });
     await app.startAllMicroservices();
-    const PORT = 5006;
+    const PORT = 2004;
     await app.listen(PORT);
     console.log(`🚀 Payment Service is running on http://localhost:${PORT}`);
-    console.log('✅ TCP microservice running on port 6006');
+    console.log('✅ TCP microservice running on port 4004');
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

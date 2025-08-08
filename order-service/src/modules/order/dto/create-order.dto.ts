@@ -1,42 +1,41 @@
-import { IsNumber, IsString, IsOptional, IsEnum } from 'class-validator';
+
+import { IsNumber, IsString, IsOptional, IsEnum, IsPositive, MaxLength } from 'class-validator';
 import { OrderStatus } from '../entities/order.entity';
 
 export class CreateOrderDto {
   @IsNumber()
-  userId: number;
+  @IsPositive()
+  user_id: number;
 
   @IsString()
-  sellerId: string;
-
-  @IsString()
-  variantId: string;
+  @IsOptional()
+  @MaxLength(255) // Increased to match entity
+  product_id?: string;
 
   @IsNumber()
-  amount: number;
+  @IsPositive()
+  total_amount: number;
 
   @IsString()
   @IsOptional()
-  currency: string = 'INR';
+  @MaxLength(10)
+  currency?: string = 'INR';
 
-  @IsOptional()
   @IsEnum(OrderStatus)
-  status?: OrderStatus;
+  @IsOptional()
+  status?: OrderStatus = OrderStatus.PENDING;
 
   @IsString()
-  name: string;
+  @IsOptional()
+  @MaxLength(50)
+  razorpay_order_id?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  receipt?: string;
 
   @IsNumber()
-  price: number;
-
-  @IsString()
-  image: string;
-
-  @IsString()
-  size: string;
-
-  @IsString()
-  color: string;
-
-  @IsNumber()
-  quantity: number;
+  @IsOptional()
+  razorpay_created_at?: number;
 }

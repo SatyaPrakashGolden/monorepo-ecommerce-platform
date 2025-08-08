@@ -2,36 +2,32 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { ClientKafka } from '@nestjs/microservices';
 import { Payment } from './entities/payment.entity';
 import { Repository } from 'typeorm';
+import { PaymentCallbackDto } from './dto/payment-callback.dto';
 export declare class PaymentService {
     private readonly kafkaClient;
     private readonly paymentRepository;
     private readonly razorpay;
     private readonly logger;
     constructor(kafkaClient: ClientKafka, paymentRepository: Repository<Payment>);
-    createOrder({ amount, currency, user_id, seller_id, variant_id }: CreateOrderDto): Promise<{
+    createOrder(createOrderDto: CreateOrderDto): Promise<{
         id: any;
         amount: number;
         currency: any;
         receipt: any;
         status: any;
     }>;
-    handleRazorpayCallback(payload: {
-        razorpay_payment_id?: string;
-        razorpay_order_id?: string;
-        razorpay_signature?: string;
-        isFailedPayment?: boolean;
-    }): Promise<{
+    handleRazorpayCallback(payload: PaymentCallbackDto): Promise<{
         success: boolean;
         message: string;
         payment_id: any;
-        order_id: any;
+        order_id: string;
         error_description: any;
         status: any;
     } | {
         success: boolean;
         message: string;
         payment_id: any;
-        order_id: any;
+        order_id: string;
         error_description?: undefined;
         status?: undefined;
     }>;

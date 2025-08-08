@@ -1,44 +1,65 @@
-// /home/satya/ecommercebackend/ecommerceBackend/order-service/src/modules/order/order.controller.ts
 import {
   Controller,
   Post,
   Body,
-  Get,
-  Param,
-  Put,
-  Delete,
-  ParseIntPipe,
+  Logger,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Order } from './entities/order.entity';
-import { EventPattern, Payload } from '@nestjs/microservices';
+import { EventPattern } from '@nestjs/microservices';
+import { OrderStatus } from './entities/order.entity';
 
 @Controller('order')
 export class OrderController {
-  constructor(private readonly orderService: OrderService) { }
+  private readonly logger = new Logger(OrderController.name);
 
-  @Post('creat-order')
+  constructor(private readonly orderService: OrderService) {}
+
+  @Post('create-order')
   async createOrder(@Body() createOrderDto: CreateOrderDto): Promise<Order> {
     return this.orderService.createOrder(createOrderDto);
   }
 
   @EventPattern('payment-order-created')
-  async handlePurchaseProduct(@Payload() message: any) {
-    const orderData: CreateOrderDto = message.value ?? message; 
-    console.log('✅ Purchase Event Received in Order Service:', orderData);
-    return this.orderService.createOrder(orderData);
+  async handlePaymentOrderCreated(data: any) {
+    try {
+      this.logger.log(`Received payment-order-created event: ${JSON.stringify(data)}`);
+      
+      const createOrderDto: CreateOrderDto = {
+        user_id: data.user_id,
+        product_id: data.product_id || data.variant_id,
+        total_amount: parseFloat(data.total_amount),
+        currency: data.currency || 'INR',
+        status: OrderStatus.PENDING,
+        razorpay_order_id: data.razorpay_order_id,
+        receipt: data.receipt,
+        razorpay_created_at: data.razorpay_created_at,
+      };
+
+      await this.orderService.createOrder(createOrderDto);
+    } catch (error) {
+      this.logger.error('Failed to handle payment-order-created event', error.stack);
+    }
   }
 
-
-  @EventPattern('verify-payment')
-  async handlePaymentVerification(@Payload() message: any) {
-    const data = message.value ?? message;
-    const { razorpay_order_id } = data;
-
-    console.log('✅ Payment Verified Event Received in Order Service:', razorpay_order_id);
-
-    await this.orderService.markOrderAsPaid(razorpay_order_id);
+  @EventPattern('payment-verified')
+  async handlePaymentVerified(data: any) {
+    try {
+      this.logger.log(`Received payment-verified event: ${JSON.stringify(data)}`);
+      await this.orderService.markOrderAsPaid(data.razorpay_order_id);
+    } catch (error) {
+      this.logger.error('Failed to handle payment-verified event', error.stack);
+    }
   }
 
+  @EventPattern('payment-failed')
+  async handlePaymentFailed(data: any) {
+    try {
+      this.logger.log(`Received payment-failed event: ${JSON.stringify(data)}`);
+      await this.orderService.markOrderAsFailed(data.razorpay_order_id, data.error_description);
+    } catch (error) {
+      this.logger.error('Failed to handle payment-failed event', error.stack);
+    }
+  }
 }

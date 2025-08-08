@@ -14,6 +14,9 @@ export class Payment {
   @Column({ type: 'varchar', length: 50, nullable: true })
   payment_id?: string;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  product_id?: string;
+
   @Column({ type: 'varchar', default: 'payment' })
   entity: string;
   @Column({ type: 'decimal', nullable: true })
@@ -26,8 +29,9 @@ export class Payment {
   @Column({ type: 'varchar', length: 20 })
   status: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true }) // Nullable to avoid errors on existing rows
-  order_id?: string;
+  @Column({ type: 'int', nullable: true })
+  user_id?: number;
+
 
   @Column({ type: 'varchar', length: 50, nullable: true })
   invoice_id?: string;
@@ -92,7 +96,7 @@ export class Payment {
   @Column({ type: 'varchar', length: 100, nullable: true })
   bank_transaction_id?: string;
 
-  @Column({ type: 'bigint', default: 0 }) 
+  @Column({ type: 'bigint', default: 0 })
   payment_created_at: number;
 
   @CreateDateColumn({ type: 'timestamp' })

@@ -39,12 +39,13 @@ let PaymentService = PaymentService_1 = class PaymentService {
             key_secret: keySecret,
         });
     }
-    async createOrder({ amount, currency = 'INR', user_id, seller_id, variant_id }) {
+    async createOrder(createOrderDto) {
+        const { amount, currency = 'INR', user_id, product_id } = createOrderDto;
         if (!amount || amount < 1) {
             throw new common_1.BadRequestException('Amount must be at least 1 INR');
         }
-        if (!user_id || !seller_id || !variant_id) {
-            throw new common_1.BadRequestException('Missing required fields: user_id, seller_id, or variant_id');
+        if (!user_id || !product_id) {
+            throw new common_1.BadRequestException('Missing required fields: user_id or product_id');
         }
         const orderOptions = {
             amount: Math.round(amount * 100),
@@ -56,8 +57,7 @@ let PaymentService = PaymentService_1 = class PaymentService {
             this.logger.log(`Razorpay Order created successfully. ID: ${order.id}`);
             const orderEventPayload = {
                 user_id,
-                seller_id,
-                variant_id,
+                product_id,
                 total_amount: (order.amount / 100).toFixed(2),
                 currency: order.currency || 'INR',
                 status: 'pending',
@@ -87,12 +87,14 @@ let PaymentService = PaymentService_1 = class PaymentService {
             throw new common_1.BadRequestException('Missing required payment or order ID');
         }
         this.logger.log(`Payment callback received: payment_id=${razorpay_payment_id}, order_id=${razorpay_order_id}`);
-        const key_secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+        const key_secret = process.env.RAZORPAY_KEY_SECRET;
         if (!key_secret) {
-            this.logger.error('Razorpay webhook secret not configured');
-            throw new common_1.InternalServerErrorException('Razorpay webhook secret not configured');
+            this.logger.error('Razorpay key secret not configured');
+            throw new common_1.InternalServerErrorException('Razorpay key secret not configured');
         }
-        const existingPayment = await this.paymentRepository.findOne({ where: { payment_id: razorpay_payment_id } });
+        const existingPayment = await this.paymentRepository.findOne({
+            where: { payment_id: razorpay_payment_id }
+        });
         if (existingPayment) {
             this.logger.warn(`Payment already processed: payment_id=${razorpay_payment_id}`);
             return {
@@ -115,17 +117,16 @@ let PaymentService = PaymentService_1 = class PaymentService {
             }
             const failedPaymentEntity = this.paymentRepository.create({
                 payment_id: payment.id,
-                entity: payment.entity,
+                entity: payment.entity || 'payment',
                 amount: payment.amount / 100,
-                currency: payment.currency,
+                currency: payment.currency || 'INR',
                 status: payment.status,
-                order_id: payment.order_id,
                 invoice_id: payment.invoice_id,
-                international: payment.international,
-                method: payment.method,
-                amount_refunded: payment.amount_refunded,
+                international: payment.international || false,
+                method: payment.method || 'unknown',
+                amount_refunded: payment.amount_refunded || 0,
                 refund_status: payment.refund_status,
-                captured: payment.captured,
+                captured: payment.captured || false,
                 description: payment.description,
                 card_id: payment.card_id,
                 bank: payment.bank,
@@ -141,17 +142,31 @@ let PaymentService = PaymentService_1 = class PaymentService {
                 error_step: payment.error_step,
                 error_reason: payment.error_reason,
                 bank_transaction_id: payment.acquirer_data?.bank_transaction_id || null,
-                payment_created_at: payment.created_at,
+                payment_created_at: payment.created_at || 0,
             });
-            await this.paymentRepository.save(failedPaymentEntity);
-            return {
-                success: false,
-                message: 'Payment failed',
-                payment_id: payment.id,
-                order_id: payment.order_id,
-                error_description: payment.error_description || 'Payment was declined',
-                status: payment.status,
-            };
+            try {
+                await this.paymentRepository.save(failedPaymentEntity);
+                await this.kafkaClient.emit('payment-failed', {
+                    razorpay_order_id: razorpay_order_id,
+                    razorpay_payment_id: payment.id,
+                    status: payment.status,
+                    amount: payment.amount / 100,
+                    error_code: payment.error_code,
+                    error_description: payment.error_description,
+                }).toPromise();
+                return {
+                    success: false,
+                    message: 'Payment failed',
+                    payment_id: payment.id,
+                    order_id: razorpay_order_id,
+                    error_description: payment.error_description || 'Payment was declined',
+                    status: payment.status,
+                };
+            }
+            catch (saveError) {
+                this.logger.error(`Failed to save failed payment: ${saveError.message}`);
+                throw new common_1.InternalServerErrorException('Failed to save payment failure record');
+            }
         }
         if (razorpay_signature) {
             const body = `${razorpay_order_id}|${razorpay_payment_id}`;
@@ -179,17 +194,16 @@ let PaymentService = PaymentService_1 = class PaymentService {
         }
         const paymentEntity = this.paymentRepository.create({
             payment_id: payment.id,
-            entity: payment.entity,
+            entity: payment.entity || 'payment',
             amount: payment.amount / 100,
-            currency: payment.currency,
+            currency: payment.currency || 'INR',
             status: payment.status,
-            order_id: payment.order_id,
             invoice_id: payment.invoice_id,
-            international: payment.international,
-            method: payment.method,
-            amount_refunded: payment.amount_refunded,
+            international: payment.international || false,
+            method: payment.method || 'unknown',
+            amount_refunded: payment.amount_refunded || 0,
             refund_status: payment.refund_status,
-            captured: payment.captured,
+            captured: payment.captured || false,
             description: payment.description,
             card_id: payment.card_id,
             bank: payment.bank,
@@ -205,22 +219,28 @@ let PaymentService = PaymentService_1 = class PaymentService {
             error_step: payment.error_step,
             error_reason: payment.error_reason,
             bank_transaction_id: payment.acquirer_data?.bank_transaction_id || null,
-            payment_created_at: payment.created_at,
+            payment_created_at: payment.created_at || 0,
         });
-        await this.paymentRepository.save(paymentEntity);
-        await this.kafkaClient.emit('verify-payment', {
-            razorpay_order_id: payment.order_id,
-            razorpay_payment_id: payment.id,
-            status: payment.status,
-            amount: payment.amount / 100,
-        }).toPromise();
-        this.logger.log(`Payment verified and stored: ${razorpay_payment_id}`);
-        return {
-            success: true,
-            message: 'Payment verified and saved successfully',
-            payment_id: payment.id,
-            order_id: payment.order_id,
-        };
+        try {
+            await this.paymentRepository.save(paymentEntity);
+            await this.kafkaClient.emit('payment-verified', {
+                razorpay_order_id: razorpay_order_id,
+                razorpay_payment_id: payment.id,
+                status: payment.status,
+                amount: payment.amount / 100,
+            }).toPromise();
+            this.logger.log(`Payment verified and stored: ${razorpay_payment_id}`);
+            return {
+                success: true,
+                message: 'Payment verified and saved successfully',
+                payment_id: payment.id,
+                order_id: razorpay_order_id,
+            };
+        }
+        catch (saveError) {
+            this.logger.error(`Failed to save successful payment: ${saveError.message}`);
+            throw new common_1.InternalServerErrorException('Failed to save payment record');
+        }
     }
 };
 exports.PaymentService = PaymentService;

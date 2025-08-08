@@ -12,9 +12,7 @@ export class CreateOrderDto {
   @IsNumber()
   user_id: number;
 
-  @IsString()
-  seller_id: string;
 
   @IsString()
-  variant_id: string;
+  product_id: string;
 }

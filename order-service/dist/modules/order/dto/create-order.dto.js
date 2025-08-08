@@ -13,68 +13,58 @@ exports.CreateOrderDto = void 0;
 const class_validator_1 = require("class-validator");
 const order_entity_1 = require("../entities/order.entity");
 class CreateOrderDto {
-    userId;
-    sellerId;
-    variantId;
-    amount;
+    user_id;
+    product_id;
+    total_amount;
     currency = 'INR';
-    status;
-    name;
-    price;
-    image;
-    size;
-    color;
-    quantity;
+    status = order_entity_1.OrderStatus.PENDING;
+    razorpay_order_id;
+    receipt;
+    razorpay_created_at;
 }
 exports.CreateOrderDto = CreateOrderDto;
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsPositive)(),
     __metadata("design:type", Number)
-], CreateOrderDto.prototype, "userId", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateOrderDto.prototype, "sellerId", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateOrderDto.prototype, "variantId", void 0);
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], CreateOrderDto.prototype, "amount", void 0);
+], CreateOrderDto.prototype, "user_id", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(255),
+    __metadata("design:type", String)
+], CreateOrderDto.prototype, "product_id", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsPositive)(),
+    __metadata("design:type", Number)
+], CreateOrderDto.prototype, "total_amount", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(10),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "currency", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEnum)(order_entity_1.OrderStatus),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "status", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(50),
     __metadata("design:type", String)
-], CreateOrderDto.prototype, "name", void 0);
+], CreateOrderDto.prototype, "razorpay_order_id", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], CreateOrderDto.prototype, "receipt", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
-], CreateOrderDto.prototype, "price", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateOrderDto.prototype, "image", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateOrderDto.prototype, "size", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateOrderDto.prototype, "color", void 0);
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], CreateOrderDto.prototype, "quantity", void 0);
+], CreateOrderDto.prototype, "razorpay_created_at", void 0);
 //# sourceMappingURL=create-order.dto.js.map

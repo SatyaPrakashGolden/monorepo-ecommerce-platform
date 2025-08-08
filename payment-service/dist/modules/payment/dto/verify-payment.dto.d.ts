@@ -1,5 +1,5 @@
 export declare class VerifyPaymentDto {
-    orderId: string;
+    productId: string;
     paymentId: string;
     signature: string;
 }

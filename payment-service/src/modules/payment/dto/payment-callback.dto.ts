@@ -7,7 +7,7 @@ export class PaymentCallbackDto {
 
   @IsOptional()
   @IsString()
-  razorpay_order_id?: string;
+  razorpay_order_id?: string; // Correctly defined
 
   @IsOptional()
   @IsString()

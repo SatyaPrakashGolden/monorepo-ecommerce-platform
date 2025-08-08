@@ -14,11 +14,12 @@ const typeorm_1 = require("typeorm");
 let Payment = class Payment {
     id;
     payment_id;
+    product_id;
     entity;
     amount;
     currency;
     status;
-    order_id;
+    user_id;
     invoice_id;
     international;
     method;
@@ -54,6 +55,10 @@ __decorate([
     __metadata("design:type", String)
 ], Payment.prototype, "payment_id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
+    __metadata("design:type", String)
+], Payment.prototype, "product_id", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'varchar', default: 'payment' }),
     __metadata("design:type", String)
 ], Payment.prototype, "entity", void 0);
@@ -70,9 +75,9 @@ __decorate([
     __metadata("design:type", String)
 ], Payment.prototype, "status", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
-    __metadata("design:type", String)
-], Payment.prototype, "order_id", void 0);
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Number)
+], Payment.prototype, "user_id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
     __metadata("design:type", String)

@@ -15,6 +15,8 @@ var OrderStatus;
 (function (OrderStatus) {
     OrderStatus["PENDING"] = "pending";
     OrderStatus["SUCCESS"] = "success";
+    OrderStatus["FAILED"] = "failed";
+    OrderStatus["CANCELLED"] = "cancelled";
 })(OrderStatus || (exports.OrderStatus = OrderStatus = {}));
 let Order = class Order {
     id;
@@ -26,12 +28,6 @@ let Order = class Order {
     razorpay_order_id;
     receipt;
     razorpay_created_at;
-    name;
-    price;
-    image;
-    size;
-    color;
-    quantity;
     created_at;
     updated_at;
 };
@@ -45,12 +41,12 @@ __decorate([
     __metadata("design:type", Number)
 ], Order.prototype, "user_id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 24, nullable: true }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: true }),
     __metadata("design:type", String)
 ], Order.prototype, "product_id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0 }),
-    __metadata("design:type", String)
+    __metadata("design:type", Number)
 ], Order.prototype, "total_amount", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 10, default: 'INR' }),
@@ -76,30 +72,6 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'bigint', nullable: true }),
     __metadata("design:type", Number)
 ], Order.prototype, "razorpay_created_at", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 255 }),
-    __metadata("design:type", String)
-], Order.prototype, "name", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2 }),
-    __metadata("design:type", Number)
-], Order.prototype, "price", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 255 }),
-    __metadata("design:type", String)
-], Order.prototype, "image", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 50 }),
-    __metadata("design:type", String)
-], Order.prototype, "size", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 50 }),
-    __metadata("design:type", String)
-], Order.prototype, "color", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'int' }),
-    __metadata("design:type", Number)
-], Order.prototype, "quantity", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ type: 'timestamp' }),
     __metadata("design:type", Date)
