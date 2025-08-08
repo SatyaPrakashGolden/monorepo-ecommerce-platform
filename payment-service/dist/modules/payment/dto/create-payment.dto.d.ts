@@ -1,0 +1,31 @@
+export declare class CreatePaymentDto {
+    payment_id?: string;
+    entity: string;
+    amount?: number;
+    currency: string;
+    status: string;
+    product_id?: string;
+    invoice_id?: string;
+    international: boolean;
+    method: string;
+    amount_refunded: number;
+    refund_status?: string;
+    captured: boolean;
+    description?: string;
+    card_id?: string;
+    bank?: string;
+    wallet?: string;
+    vpa?: string;
+    email?: string;
+    contact?: string;
+    fee?: number;
+    tax?: number;
+    error_code?: string;
+    error_description?: string;
+    error_source?: string;
+    error_step?: string;
+    error_reason?: string;
+    bank_transaction_id?: string;
+    payment_created_at: number;
+    user_id?: number;
+}

@@ -17,6 +17,27 @@ import { uploadFileToS3 } from '../../utils/s3-upload';
 export class ProductController {
   constructor(private readonly productService: ProductService) { }
 
+  @MessagePattern({ cmd: 'reserve_stock' })
+  async reserveStock(@Payload() payload: { productId: string; quantity: number }) {
+    try {
+      const result = await this.productService.reserveStock(payload);
+      return successResponse(result, 'Stock reserved successfully');
+    } catch (error) {
+      console.error(error);
+      throw errorResponse(error, 'Failed to reserve stock');
+    }
+  }
+
+  @MessagePattern({ cmd: 'release_stock' })
+  async releaseStock(@Payload() payload: { productId: string; quantity: number }) {
+    try {
+      const result = await this.productService.releaseStock(payload);
+      return successResponse(result, 'Stock released successfully');
+    } catch (error) {
+      console.error(error);
+      throw errorResponse(error, 'Failed to release stock');
+    }
+  }
 
   @MessagePattern({ cmd: 'product_details' })
   async getProductDetailsMessage(@Payload() productId: string) {

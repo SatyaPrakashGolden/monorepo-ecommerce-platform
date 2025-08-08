@@ -9,7 +9,7 @@ export class ProductController {
   ) { }
 
 
-    @Get('product-details')
+  @Get('product-details')
   async findByIdWithDetails(@Query('productId') productId: string) {
     try {
       const result = await this.productGatewayService.findByIdWithDetails(productId);
@@ -48,6 +48,29 @@ export class ProductController {
       return successResponse(result, 'Related products fetched successfully');
     } catch (error) {
       throwHttpFormattedError(error);
+    }
+  }
+
+
+  @Post('reserve-stock')
+  async reserveStock(@Body() body: any) {
+    try {
+      const { productId, quantity } = body;
+      const result = await this.productGatewayService.reserveStock(productId, quantity);
+      return successResponse(result, 'Stock reserved successfully');
+    } catch (error) {
+      throw throwHttpFormattedError(error, 'Failed to reserve stock');
+    }
+  }
+
+  @Post('release-stock')
+  async releaseStock(@Body() body: any) {
+    try {
+      const { productId, quantity } = body;
+      const result = await this.productGatewayService.releaseStock(productId, quantity);
+      return successResponse(result, 'Stock released successfully');
+    } catch (error) {
+      throw throwHttpFormattedError(error, 'Failed to release stock');
     }
   }
 

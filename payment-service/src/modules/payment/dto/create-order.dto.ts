@@ -1,24 +1,18 @@
-import { IsNumber, IsString, IsOptional, IsEmail } from 'class-validator';
+import { IsNumber, IsString, Min, IsOptional } from 'class-validator';
 
-export class CreatePaymentDto {
+export class CreateOrderDto {
   @IsNumber()
-  orderId: number;
-
-  @IsNumber()
+  @Min(1, { message: 'Amount must be at least 1 INR' })
   amount: number;
 
-  @IsString()
   @IsOptional()
-  currency: string = 'INR';
+  @IsString()
+  currency?: string;
+
+  @IsNumber()
+  user_id: number;
+
 
   @IsString()
-  paymentMethod: string;
-
-  @IsEmail()
-  @IsOptional()
-  email?: string;
-
-  @IsString()
-  @IsOptional()
-  contact?: string;
+  product_id: string;
 }

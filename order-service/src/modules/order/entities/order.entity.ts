@@ -1,4 +1,3 @@
-// /home/satya/myproject/order-service/src/modules/order/entities/order.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -10,8 +9,8 @@ import {
 export enum OrderStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled',
+  FAILED = 'failed', // Added failed status
+  CANCELLED = 'cancelled', // Added cancelled status
 }
 
 @Entity('orders')
@@ -22,14 +21,11 @@ export class Order {
   @Column()
   user_id: number;
 
-  @Column({ type: 'varchar', length: 24, nullable: true })
-  seller_id: string;
-
-  @Column({ type: 'varchar', length: 24, nullable: true })
-  variant_id: string;
+  @Column({ type: 'varchar', length: 255, nullable: true }) // Increased length for multiple product IDs
+  product_id?: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  total_amount: string;
+  total_amount: number; // Changed from string to number
 
   @Column({ type: 'varchar', length: 10, default: 'INR' })
   currency: string;
@@ -42,13 +38,13 @@ export class Order {
   status: OrderStatus;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  razorpay_order_id: string;
+  razorpay_order_id?: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  receipt: string;
+  receipt?: string;
 
   @Column({ type: 'bigint', nullable: true })
-  razorpay_created_at: number;
+  razorpay_created_at?: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;

@@ -51,7 +51,7 @@ async function bootstrap() {
     transport: Transport.TCP,
     options: {
       host: 'localhost',
-      port: 6004,
+      port: 4003,
     },
   });
 
@@ -71,10 +71,10 @@ async function bootstrap() {
     });
 
   // Start HTTP server
-  const PORT = 5004;
+  const PORT = 2003;
   await app.listen(PORT);
   console.log(`🚀 Order Service is running at http://localhost:${PORT}`);
-  console.log('✅ TCP Microservice is running on port 6004');
+  console.log('✅ TCP Microservice is running on port 4003');
 }
 
 bootstrap();
