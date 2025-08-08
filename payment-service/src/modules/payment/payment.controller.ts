@@ -1,9 +1,20 @@
-import { Controller, Post, Body, HttpException, HttpStatus, ValidationPipe, Res } from '@nestjs/common';
+import { 
+  Controller, 
+  Post, 
+  Body, 
+  HttpException, 
+  HttpStatus, 
+  ValidationPipe, 
+  Res, 
+  UseGuards, 
+  Request 
+} from '@nestjs/common';
 import { Response } from 'express';
 import { PaymentService } from './payment.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { PaymentCallbackDto } from './dto/payment-callback.dto';
 import { Logger } from '@nestjs/common';
+import { UserAuthGuard } from '../../auth/user.middleware';
 
 @Controller('payment')
 export class PaymentController {
@@ -12,9 +23,19 @@ export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   @Post('order')
-  async createOrder(@Body(ValidationPipe) createOrderDto: CreateOrderDto) {
+  @UseGuards(UserAuthGuard) // Use the UserAuthGuard for authentication
+  async createOrder(
+    @Request() req,
+    @Body(ValidationPipe) createOrderDto: CreateOrderDto
+  ) {
     try {
-      const order = await this.paymentService.createOrder(createOrderDto);
+      const userId = req.user.id;
+      const orderWithUserId = {
+        ...createOrderDto,
+        user_id: userId
+      };
+      
+      const order = await this.paymentService.createOrder(orderWithUserId);
       return {
         success: true,
         order,
@@ -38,27 +59,46 @@ export class PaymentController {
 
       // Handle failed payment structure
       if (body?.error?.metadata) {
-        const metadata = JSON.parse(body.error.metadata);
-        const { payment_id, order_id } = metadata;
+        let metadata;
+        try {
+          metadata = JSON.parse(body.error.metadata);
+        } catch (parseError) {
+          this.logger.error(`Failed to parse error metadata: ${parseError.message}`);
+          const failureRedirectUrl = process.env.FAILURE_REDIRECT_URL || 'http://localhost:3000/payment/failure';
+          return res.redirect(
+            `${failureRedirectUrl}?error=${encodeURIComponent('Invalid metadata format')}`
+          );
+        }
 
-        this.logger.log(`Processing failed payment: payment_id=${payment_id}, order_id=${order_id}`);
+        const { payment_id, user_id } = metadata;
+
+        this.logger.log(`Processing failed payment: payment_id=${payment_id}, user_id=${user_id}`);
 
         result = await this.paymentService.handleRazorpayCallback({
           razorpay_payment_id: payment_id,
-          razorpay_order_id: order_id,
-          razorpay_signature: '',
+          razorpay_order_id: body.razorpay_order_id || '',
+          razorpay_signature: undefined,
           isFailedPayment: true,
+        });
+
+        this.logger.error(`Payment failed: ${result.error_description || 'Unknown error'}`, {
+          payment_id: payment_id,
+          user_id: user_id,
         });
 
         const failureRedirectUrl = process.env.FAILURE_REDIRECT_URL || 'http://localhost:3000/payment/failure';
         return res.redirect(
           `${failureRedirectUrl}?error=${encodeURIComponent(
             result.error_description || 'Payment failed',
-          )}&order_id=${result.order_id}&payment_id=${result.payment_id}`,
+          )}&user_id=${user_id}&payment_id=${payment_id}`,
         );
       } else {
         // Handle successful payment
         const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = body;
+
+        if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+          throw new HttpException('Missing required payment parameters', HttpStatus.BAD_REQUEST);
+        }
 
         result = await this.paymentService.handleRazorpayCallback({
           razorpay_payment_id,
@@ -71,19 +111,24 @@ export class PaymentController {
 
         const successRedirectUrl = process.env.SUCCESS_REDIRECT_URL || 'http://localhost:3000/payment/success';
         return res.redirect(
-          `${successRedirectUrl}?payment_id=${result.payment_id}&order_id=${result.order_id}`,
+          `${successRedirectUrl}?payment_id=${result.payment_id}&order_id=${result.order_id}`
         );
       }
     } catch (error) {
       this.logger.error(`Payment callback failed: ${error.message}`, error.stack);
 
+      let userId = 'unknown';
       let orderId = 'unknown';
+
       if (body?.razorpay_order_id) {
         orderId = body.razorpay_order_id;
-      } else if (body?.error?.metadata) {
+      }
+
+      if (body?.error?.metadata) {
         try {
           const metadata = JSON.parse(body.error.metadata);
-          orderId = metadata.order_id;
+          userId = metadata.user_id || 'unknown';
+          orderId = metadata.order_id || orderId;
         } catch (parseError) {
           this.logger.error(`Failed to parse error metadata: ${parseError.message}`);
         }
@@ -91,8 +136,11 @@ export class PaymentController {
 
       const failureRedirectUrl = process.env.FAILURE_REDIRECT_URL || 'http://localhost:3000/payment/failure';
       return res.redirect(
-        `${failureRedirectUrl}?error=${encodeURIComponent(error.message || 'callback_error')}&order_id=${orderId}`,
+        `${failureRedirectUrl}?error=${encodeURIComponent(
+          error.message || 'callback_error'
+        )}&user_id=${userId}&order_id=${orderId}`,
       );
     }
   }
+  
 }

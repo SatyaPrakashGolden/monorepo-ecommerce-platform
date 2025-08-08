@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.VerifyPaymentDto = void 0;
 const class_validator_1 = require("class-validator");
 class VerifyPaymentDto {
-    orderId;
+    productId;
     paymentId;
     signature;
 }
@@ -21,7 +21,7 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], VerifyPaymentDto.prototype, "orderId", void 0);
+], VerifyPaymentDto.prototype, "productId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),

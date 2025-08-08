@@ -4,7 +4,7 @@ import { IsString, IsNotEmpty } from 'class-validator';
 export class VerifyPaymentDto {
   @IsString()
   @IsNotEmpty()
-  orderId: string;
+  productId: string;
 
   @IsString()
   @IsNotEmpty()

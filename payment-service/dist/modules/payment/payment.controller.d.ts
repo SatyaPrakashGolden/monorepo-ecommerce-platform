@@ -6,7 +6,7 @@ export declare class PaymentController {
     private readonly paymentService;
     private readonly logger;
     constructor(paymentService: PaymentService);
-    createOrder(createOrderDto: CreateOrderDto): Promise<{
+    createOrder(req: any, createOrderDto: CreateOrderDto): Promise<{
         success: boolean;
         order: {
             id: any;

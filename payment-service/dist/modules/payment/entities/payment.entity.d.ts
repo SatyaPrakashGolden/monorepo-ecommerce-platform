@@ -1,11 +1,12 @@
 export declare class Payment {
     id: number;
     payment_id?: string;
+    product_id?: string;
     entity: string;
     amount?: number;
     currency: string;
     status: string;
-    order_id?: string;
+    user_id?: number;
     invoice_id?: string;
     international: boolean;
     method: string;

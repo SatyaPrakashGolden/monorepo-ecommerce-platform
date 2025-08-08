@@ -15,8 +15,7 @@ class CreateOrderDto {
     amount;
     currency;
     user_id;
-    seller_id;
-    variant_id;
+    product_id;
 }
 exports.CreateOrderDto = CreateOrderDto;
 __decorate([
@@ -36,9 +35,5 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateOrderDto.prototype, "seller_id", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateOrderDto.prototype, "variant_id", void 0);
+], CreateOrderDto.prototype, "product_id", void 0);
 //# sourceMappingURL=create-order.dto.js.map

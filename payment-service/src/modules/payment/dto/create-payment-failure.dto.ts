@@ -1,10 +1,10 @@
-import { IsString, IsNotEmpty, MaxLength, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength, IsOptional, IsInt } from 'class-validator';
 
 export class CreatePaymentFailureDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
-  orderId: string;
+  id: string;
 
   @IsString()
   @IsOptional()
@@ -29,4 +29,8 @@ export class CreatePaymentFailureDto {
   @IsNotEmpty()
   @MaxLength(30)
   type: string;
+
+  @IsInt()
+  @IsNotEmpty()
+  userId: number;
 }

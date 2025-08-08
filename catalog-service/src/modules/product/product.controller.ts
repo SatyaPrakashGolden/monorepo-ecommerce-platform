@@ -29,15 +29,15 @@ export class ProductController {
   }
 
   @MessagePattern({ cmd: 'release_stock' })
-async releaseStock(@Payload() payload: { productId: string; quantity: number }) {
-  try {
-    const result = await this.productService.releaseStock(payload);
-    return successResponse(result, 'Stock released successfully');
-  } catch (error) {
-    console.error(error);
-    throw errorResponse(error, 'Failed to release stock');
+  async releaseStock(@Payload() payload: { productId: string; quantity: number }) {
+    try {
+      const result = await this.productService.releaseStock(payload);
+      return successResponse(result, 'Stock released successfully');
+    } catch (error) {
+      console.error(error);
+      throw errorResponse(error, 'Failed to release stock');
+    }
   }
-}
 
   @MessagePattern({ cmd: 'product_details' })
   async getProductDetailsMessage(@Payload() productId: string) {

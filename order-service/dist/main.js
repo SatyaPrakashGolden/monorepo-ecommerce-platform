@@ -38,7 +38,7 @@ async function bootstrap() {
         transport: microservices_1.Transport.TCP,
         options: {
             host: 'localhost',
-            port: 6004,
+            port: 4003,
         },
     });
     await app.startAllMicroservices();
@@ -50,10 +50,10 @@ async function bootstrap() {
         .catch((error) => {
         console.error('❌ Kafka connection failed:', error);
     });
-    const PORT = 5004;
+    const PORT = 2003;
     await app.listen(PORT);
     console.log(`🚀 Order Service is running at http://localhost:${PORT}`);
-    console.log('✅ TCP Microservice is running on port 6004');
+    console.log('✅ TCP Microservice is running on port 4003');
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

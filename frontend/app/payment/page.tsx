@@ -1,9 +1,28 @@
-
-
-// Frontend - PaymentPage.tsx
 'use client';
-import { useState, FormEvent } from 'react';
+
+import { useState, useEffect, FormEvent } from 'react';
 import axios from 'axios';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+
+interface CartItem {
+  productId: string;
+  name: string;
+  price: number;
+  image: string;
+  size: string;
+  color: string;
+  quantity: number;
+}
+
+interface CheckoutData {
+  cartItems: CartItem[];
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+}
 
 interface OrderResponse {
   success: boolean;
@@ -14,40 +33,143 @@ interface OrderResponse {
   };
 }
 
-export default function PaymentPage() {
-  const [variantId] = useState<string>('68185c4f14a5b7905a0574b6');
-  const [showroomId] = useState<number>(22);
-  const [colorId] = useState<string>('68185c4f14a5b7905a0574b7');
+interface User {
+  id: number;
+  emailId: string;
+}
 
-  const [amount, setAmount] = useState<string>('');
+export default function PaymentPage() {
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+
+  // Get access token from localStorage
+  const getAccessToken = (): string | null => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('accessToken');
+    }
+    return null;
+  };
+
+  // Get user data from localStorage
+  const getUserData = (): User | null => {
+    if (typeof window !== 'undefined') {
+      const userData = localStorage.getItem('user');
+      return userData ? JSON.parse(userData) : null;
+    }
+    return null;
+  };
+
+  // Create axios instance with auth interceptor
+  const createAxiosInstance = () => {
+    const instance = axios.create();
+    
+    instance.interceptors.request.use((config) => {
+      const token = getAccessToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
+
+    return instance;
+  };
+
+  // Format price in INR
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(price);
+  };
+
+  // Load checkout data and user data from local storage
+  useEffect(() => {
+    const data = localStorage.getItem('checkoutData');
+    const userData = getUserData();
+    
+    if (data) {
+      try {
+        const parsedData: CheckoutData = JSON.parse(data);
+        setCheckoutData(parsedData);
+      } catch (err) {
+        console.error('Failed to parse checkout data:', err);
+        setError('Failed to load cart details. Please return to cart.');
+      }
+    } else {
+      setError('No cart data found. Please return to cart.');
+    }
+
+    if (userData) {
+      setUser(userData);
+    } else {
+      setError('User not authenticated. Please login.');
+    }
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    const parsedAmount = Number(amount);
-    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
-      setError('Please enter a valid amount greater than 0');
+    if (!checkoutData) {
+      setError('No cart data available. Please return to cart.');
       setLoading(false);
       return;
     }
 
-    let orderData = null;
+    if (!user) {
+      setError('User not authenticated. Please login.');
+      setLoading(false);
+      return;
+    }
+
+    const { cartItems, total } = checkoutData;
+    const accessToken = getAccessToken();
+
+    if (!accessToken) {
+      setError('Authentication token not found. Please login again.');
+      setLoading(false);
+      return;
+    }
+
+    if (!total || total <= 0) {
+      setError('Invalid total amount.');
+      setLoading(false);
+      return;
+    }
+
+    let orderData: OrderResponse['order'] | null = null;
+    const axiosInstance = createAxiosInstance();
 
     try {
-      // Reserve inventory
-      await axios.get('http://localhost:5000/api/product/reserve-stock', {
-        params: { productId: variantId, showroom_id: showroomId, color_id: colorId },
-        timeout: 5000,
-      });
+      // Reserve inventory for all cart items
+      for (const item of cartItems) {
+        await axiosInstance.post(
+          'http://localhost:2000/api/product/reserve-stock',
+          {
+            productId: item.productId,
+            quantity: item.quantity,
+          },
+          { timeout: 5000 }
+        );
+      }
 
-      // Create order
-      const { data }: { data: OrderResponse } = await axios.post(
-        `http://localhost:5006/api/payment/order`,
-        { amount: parsedAmount, currency: 'INR' },
+      // Create order with required fields
+      // Generate a product_id from cart items (you might want to adjust this logic)
+      const productIds = cartItems.map(item => item.productId).join(',');
+      
+      const { data }: { data: OrderResponse } = await axiosInstance.post(
+        `http://localhost:2004/api/payment/order`,
+        { 
+          amount: total, // Send original amount, not in paise
+          currency: 'INR',
+          user_id: user.id, // Add required user_id
+          product_id: productIds // Add required product_id (composite of all products)
+        },
         { timeout: 10000 }
       );
 
@@ -61,7 +183,7 @@ export default function PaymentPage() {
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = 'https://api.razorpay.com/v1/checkout/embedded';
-      
+
       // Add form fields
       const fields = {
         key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_StrkvgR0IMUtoF',
@@ -69,13 +191,13 @@ export default function PaymentPage() {
         currency: data.order.currency,
         order_id: data.order.id,
         name: 'Delente Technologies Pvt. Ltd.',
-        description: 'Payment for Services',
-        prefill_name: 'Satya Singh',
-        prefill_email: 'satya@gmail.com',
+        description: 'Payment for Cart Items',
+        prefill_name: user.emailId.split('@')[0] || 'Customer', // Use user data
+        prefill_email: user.emailId, // Use user email
         notes_address: 'M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002',
         theme_color: '#1E40AF',
-        callback_url: `http://localhost:5006/api/payment/callback`,
-        cancel_url: `${window.location.origin}/payment/cancel?variant_id=${variantId}&showroom_id=${showroomId}&color_id=${colorId}`,
+        callback_url: `http://localhost:2004/api/payment/callback`, // Fixed port to match your API
+        cancel_url: `${window.location.origin}/payment/cancel`,
       };
 
       Object.entries(fields).forEach(([key, value]) => {
@@ -88,14 +210,22 @@ export default function PaymentPage() {
 
       document.body.appendChild(form);
       form.submit();
-      
+
+      // Clear local storage after successful payment initiation
+      localStorage.removeItem('checkoutData');
     } catch (err: any) {
-      // Release inventory on error
+      // Release inventory for all cart items on error
       try {
-        await axios.get('http://localhost:5003/api/inventory/release', {
-          params: { variant_id: variantId, showroom_id: showroomId, color_id: colorId },
-          timeout: 5000,
-        });
+        for (const item of cartItems) {
+          await axiosInstance.post(
+            'http://localhost:2000/api/product/release-stock',
+            {
+              productId: item.productId,
+              quantity: item.quantity,
+            },
+            { timeout: 5000 }
+          );
+        }
       } catch (releaseErr) {
         console.error('Failed to release inventory:', releaseErr);
       }
@@ -103,51 +233,107 @@ export default function PaymentPage() {
       // Log payment failure if order was created
       if (orderData) {
         try {
-          await axios.post('http://localhost:5006/api/payment/failure', {
-            orderId: orderData.id,
+          await axiosInstance.post('http://localhost:2004/api/payment/failure', {
+            id: orderData.id,
             paymentId: null,
             errorCode: err.response?.status?.toString() || 'UNKNOWN_ERROR',
             errorDescription: err.response?.data?.message || err.message || 'Payment initialization failed',
             errorReason: 'ORDER_CREATION_FAILED',
             type: 'frontend_error',
+            userId: user.id,
           });
         } catch (logErr) {
           console.error('Failed to log payment failure:', logErr);
         }
       }
-      
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          'Failed to process payment or reserve inventory'
-      );
+
+      // Handle authentication errors
+      if (err.response?.status === 401) {
+        setError('Authentication failed. Please login again.');
+        // Optionally redirect to login page
+        // window.location.href = '/login';
+      } else {
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            'Failed to process payment or reserve inventory'
+        );
+      }
       setLoading(false);
     }
   };
 
+  if (!checkoutData || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
+          <h1 className="text-2xl font-bold mb-6">Error</h1>
+          <p className="text-red-500 mb-4">{error || 'Loading...'}</p>
+          <div className="space-y-2">
+            <Button asChild className="w-full">
+              <Link href="/cart">Return to Cart</Link>
+            </Button>
+            {!user && (
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/login">Login</Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl">
         <h1 className="text-2xl font-bold mb-6 text-center">Delente Technologies Payment</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
-              Amount (INR)
-            </label>
-            <input
-              type="number"
-              id="amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className={`mt-1 block w-full px-3 py-2 border ${
-                error ? 'border-red-500' : 'border-gray-300'
-              } rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
-              placeholder="Enter amount"
-              min="1"
-              step="0.01"
-              required
-            />
+
+        {/* User Info */}
+        <div className="mb-4 text-sm text-gray-600">
+          <p>Logged in as: {user.emailId}</p>
+        </div>
+
+        {/* Order Summary */}
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+          <div className="space-y-4">
+            {checkoutData.cartItems.map((item) => (
+              <div
+                key={`${item.productId}-${item.size}-${item.color}`}
+                className="flex justify-between text-sm"
+              >
+                <span>
+                  {item.name} (Size: {item.size}, Color: {item.color}, Qty: {item.quantity})
+                </span>
+                <span>{formatPrice(item.price * item.quantity)}</span>
+              </div>
+            ))}
+            <Separator className="my-4" />
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>{formatPrice(checkoutData.subtotal)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Shipping</span>
+                <span>{formatPrice(checkoutData.shipping)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tax</span>
+                <span>{formatPrice(checkoutData.tax)}</span>
+              </div>
+              <Separator className="my-2" />
+              <div className="flex justify-between font-semibold">
+                <span>Total</span>
+                <span>{formatPrice(checkoutData.total)}</span>
+              </div>
+            </div>
           </div>
+        </div>
+
+        {/* Payment Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <button
             type="submit"

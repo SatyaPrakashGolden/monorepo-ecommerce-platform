@@ -1,10 +1,10 @@
 export declare class CreatePaymentDto {
-    payment_id: string;
+    payment_id?: string;
     entity: string;
-    amount: number;
+    amount?: number;
     currency: string;
     status: string;
-    order_id: string;
+    product_id?: string;
     invoice_id?: string;
     international: boolean;
     method: string;
@@ -27,4 +27,5 @@ export declare class CreatePaymentDto {
     error_reason?: string;
     bank_transaction_id?: string;
     payment_created_at: number;
+    user_id?: number;
 }

@@ -17,7 +17,7 @@ class CreatePaymentDto {
     amount;
     currency;
     status;
-    order_id;
+    product_id;
     invoice_id;
     international;
     method;
@@ -40,10 +40,12 @@ class CreatePaymentDto {
     error_reason;
     bank_transaction_id;
     payment_created_at;
+    user_id;
 }
 exports.CreatePaymentDto = CreatePaymentDto;
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreatePaymentDto.prototype, "payment_id", void 0);
 __decorate([
@@ -52,6 +54,7 @@ __decorate([
 ], CreatePaymentDto.prototype, "entity", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreatePaymentDto.prototype, "amount", void 0);
 __decorate([
@@ -64,8 +67,9 @@ __decorate([
 ], CreatePaymentDto.prototype, "status", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
-], CreatePaymentDto.prototype, "order_id", void 0);
+], CreatePaymentDto.prototype, "product_id", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -171,4 +175,9 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreatePaymentDto.prototype, "payment_created_at", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreatePaymentDto.prototype, "user_id", void 0);
 //# sourceMappingURL=create-payment.dto.js.map

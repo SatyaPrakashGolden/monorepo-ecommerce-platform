@@ -9,6 +9,8 @@ import {
 export enum OrderStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
+  FAILED = 'failed', // Added failed status
+  CANCELLED = 'cancelled', // Added cancelled status
 }
 
 @Entity('orders')
@@ -19,11 +21,11 @@ export class Order {
   @Column()
   user_id: number;
 
-  @Column({ type: 'varchar', length: 24, nullable: true })
-  product_id: string;
+  @Column({ type: 'varchar', length: 255, nullable: true }) // Increased length for multiple product IDs
+  product_id?: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  total_amount: string;
+  total_amount: number; // Changed from string to number
 
   @Column({ type: 'varchar', length: 10, default: 'INR' })
   currency: string;
@@ -36,32 +38,13 @@ export class Order {
   status: OrderStatus;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  razorpay_order_id: string;
+  razorpay_order_id?: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  receipt: string;
+  receipt?: string;
 
   @Column({ type: 'bigint', nullable: true })
-  razorpay_created_at: number;
-
-  // New fields
-  @Column({ type: 'varchar', length: 255 })
-  name: string;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
-  price: number;
-
-  @Column({ type: 'varchar', length: 255 })
-  image: string;
-
-  @Column({ type: 'varchar', length: 50 })
-  size: string;
-
-  @Column({ type: 'varchar', length: 50 })
-  color: string;
-
-  @Column({ type: 'int' })
-  quantity: number;
+  razorpay_created_at?: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;

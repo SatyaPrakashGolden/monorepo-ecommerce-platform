@@ -1,14 +1,16 @@
-import { IsString, IsNumber, IsBoolean, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsNumber, IsBoolean, IsOptional, IsEmail, IsInt } from 'class-validator';
 
 export class CreatePaymentDto {
   @IsString()
-  payment_id: string;
+  @IsOptional()
+  payment_id?: string;
 
   @IsString()
   entity: string;
 
   @IsNumber()
-  amount: number;
+  @IsOptional()
+  amount?: number;
 
   @IsString()
   currency: string;
@@ -17,7 +19,8 @@ export class CreatePaymentDto {
   status: string;
 
   @IsString()
-  order_id: string;
+  @IsOptional()
+  product_id?: string;
 
   @IsOptional()
   @IsString()
@@ -101,4 +104,8 @@ export class CreatePaymentDto {
 
   @IsNumber()
   payment_created_at: number;
+
+  @IsInt()
+  @IsOptional()
+  user_id?: number;
 }
