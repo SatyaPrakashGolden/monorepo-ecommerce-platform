@@ -7,7 +7,7 @@ import { Partitioners } from 'kafkajs';
   imports: [
     ClientsModule.register([
       {
-        name: 'KAFKA_SERVICE', 
+        name: 'KAFKA_SERVICE',
         transport: Transport.KAFKA,
         options: {
           client: {
@@ -24,6 +24,6 @@ import { Partitioners } from 'kafkajs';
       },
     ]),
   ],
-  exports: [ClientsModule],  
+  exports: [ClientsModule],
 })
-export class KafkaModule {}
+export class KafkaModule { }

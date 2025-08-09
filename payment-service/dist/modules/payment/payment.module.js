@@ -6,26 +6,50 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PaymentModule = void 0;
+exports.PaymentSagaModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
-const payment_service_1 = require("./payment.service");
+const microservices_1 = require("@nestjs/microservices");
 const payment_controller_1 = require("./payment.controller");
-const kafka_module_1 = require("../../kafka/kafka.module");
+const payment_service_1 = require("./payment.service");
+const notification_service_1 = require("../../notification/notification.service");
+const payment_saga_orchestrator_service_1 = require("./payment-saga-orchestrator.service");
+const saga_event_controller_1 = require("./saga-event.controller");
 const payment_entity_1 = require("./entities/payment.entity");
+const order_entity_1 = require("./entities/order.entity");
+const saga_entity_1 = require("./entities/saga.entity");
 const auth_module_1 = require("../../auth/auth.module");
-let PaymentModule = class PaymentModule {
+let PaymentSagaModule = class PaymentSagaModule {
 };
-exports.PaymentModule = PaymentModule;
-exports.PaymentModule = PaymentModule = __decorate([
+exports.PaymentSagaModule = PaymentSagaModule;
+exports.PaymentSagaModule = PaymentSagaModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([payment_entity_1.Payment]),
-            kafka_module_1.KafkaModule,
-            auth_module_1.AuthModule
+            typeorm_1.TypeOrmModule.forFeature([saga_entity_1.Saga, saga_entity_1.SagaStep, payment_entity_1.Payment, order_entity_1.Order]),
+            microservices_1.ClientsModule.register([
+                {
+                    name: 'KAFKA_SERVICE',
+                    transport: microservices_1.Transport.KAFKA,
+                    options: {
+                        client: {
+                            clientId: 'payment-saga-service',
+                            brokers: ['localhost:9092'],
+                        },
+                        consumer: {
+                            groupId: 'payment-saga-consumer-group',
+                        },
+                    },
+                },
+            ]),
+            auth_module_1.AuthModule,
         ],
-        providers: [payment_service_1.PaymentService],
-        controllers: [payment_controller_1.PaymentController],
+        controllers: [payment_controller_1.PaymentController, saga_event_controller_1.SagaEventController],
+        providers: [
+            payment_service_1.PaymentService,
+            payment_saga_orchestrator_service_1.PaymentSagaOrchestrator,
+            notification_service_1.NotificationService,
+        ],
+        exports: [payment_saga_orchestrator_service_1.PaymentSagaOrchestrator],
     })
-], PaymentModule);
+], PaymentSagaModule);
 //# sourceMappingURL=payment.module.js.map

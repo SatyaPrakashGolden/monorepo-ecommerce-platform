@@ -12,6 +12,7 @@ const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
 const payment_module_1 = require("./modules/payment/payment.module");
 const database_config_1 = require("./config/database.config");
+const auth_module_1 = require("./auth/auth.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -23,7 +24,8 @@ exports.AppModule = AppModule = __decorate([
                 envFilePath: '.env',
             }),
             typeorm_1.TypeOrmModule.forRoot(database_config_1.typeOrmConfig),
-            payment_module_1.PaymentModule,
+            payment_module_1.PaymentSagaModule,
+            auth_module_1.AuthModule,
         ],
     })
 ], AppModule);

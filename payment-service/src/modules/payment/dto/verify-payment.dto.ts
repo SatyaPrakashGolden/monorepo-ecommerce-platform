@@ -1,16 +1,12 @@
-// /home/satya/carbike360evBackend/ecommerceBackend/payment-service/src/modules/payment/dto/verify-payment.dto.ts
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString } from 'class-validator';
 
 export class VerifyPaymentDto {
   @IsString()
-  @IsNotEmpty()
-  productId: string;
+  razorpay_payment_id: string;
 
   @IsString()
-  @IsNotEmpty()
-  paymentId: string;
+  razorpay_order_id: string;
 
   @IsString()
-  @IsNotEmpty()
-  signature: string;
+  razorpay_signature: string;
 }

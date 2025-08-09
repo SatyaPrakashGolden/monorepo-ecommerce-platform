@@ -1,24 +1,29 @@
 import { IsString, IsOptional, IsBoolean } from 'class-validator';
 
 export class PaymentCallbackDto {
-  @IsOptional()
   @IsString()
+  @IsOptional()
   razorpay_payment_id?: string;
 
-  @IsOptional()
   @IsString()
-  razorpay_order_id?: string; // Correctly defined
+  @IsOptional()
+  razorpay_order_id?: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   razorpay_signature?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isFailedPayment?: boolean;
 
   @IsOptional()
   error?: {
     metadata?: string;
+    description?: string;
   };
+
+  @IsString()
+  @IsOptional()
+  saga_id?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isFailedPayment?: boolean;
 }

@@ -39,35 +39,23 @@ let PaymentService = PaymentService_1 = class PaymentService {
             key_secret: keySecret,
         });
     }
-    async createOrder(createOrderDto) {
-        const { amount, currency = 'INR', user_id, product_id } = createOrderDto;
-        if (!amount || amount < 1) {
+    async createRazorpayOrder(createOrderDto) {
+        const { total_amount, currency = 'INR', user_id, product_id, saga_id } = createOrderDto;
+        if (!total_amount || total_amount < 1) {
             throw new common_1.BadRequestException('Amount must be at least 1 INR');
         }
         if (!user_id || !product_id) {
             throw new common_1.BadRequestException('Missing required fields: user_id or product_id');
         }
         const orderOptions = {
-            amount: Math.round(amount * 100),
+            amount: Math.round(total_amount * 100),
             currency,
             receipt: `receipt_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+            notes: { saga_id },
         };
         try {
             const order = await this.razorpay.orders.create(orderOptions);
             this.logger.log(`Razorpay Order created successfully. ID: ${order.id}`);
-            const orderEventPayload = {
-                user_id,
-                product_id,
-                total_amount: (order.amount / 100).toFixed(2),
-                currency: order.currency || 'INR',
-                status: 'pending',
-                razorpay_order_id: order.id || null,
-                receipt: order.receipt || null,
-                razorpay_created_at: order.created_at || null,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            };
-            await this.kafkaClient.emit('payment-order-created', orderEventPayload).toPromise();
             return {
                 id: order.id,
                 amount: order.amount / 100,
@@ -89,27 +77,17 @@ let PaymentService = PaymentService_1 = class PaymentService {
         this.logger.log(`Payment callback received: payment_id=${razorpay_payment_id}, order_id=${razorpay_order_id}`);
         const key_secret = process.env.RAZORPAY_KEY_SECRET;
         if (!key_secret) {
-            this.logger.error('Razorpay key secret not configured');
             throw new common_1.InternalServerErrorException('Razorpay key secret not configured');
         }
-        const existingPayment = await this.paymentRepository.findOne({
-            where: { payment_id: razorpay_payment_id }
-        });
+        const existingPayment = await this.paymentRepository.findOne({ where: { payment_id: razorpay_payment_id } });
         if (existingPayment) {
             this.logger.warn(`Payment already processed: payment_id=${razorpay_payment_id}`);
-            return {
-                success: false,
-                message: 'Payment already processed',
-                payment_id: razorpay_payment_id,
-                order_id: razorpay_order_id,
-            };
+            return { success: false, message: 'Payment already processed', payment_id: razorpay_payment_id, order_id: razorpay_order_id };
         }
         if (isFailedPayment) {
-            this.logger.warn(`Processing failed payment: payment_id=${razorpay_payment_id}, order_id=${razorpay_order_id}`);
             let payment;
             try {
                 payment = await this.razorpay.payments.fetch(razorpay_payment_id);
-                this.logger.log(`Fetched failed payment details: payment_id=${razorpay_payment_id}`);
             }
             catch (error) {
                 this.logger.error(`Failed to fetch failed payment details: ${error.message}`);
@@ -144,40 +122,24 @@ let PaymentService = PaymentService_1 = class PaymentService {
                 bank_transaction_id: payment.acquirer_data?.bank_transaction_id || null,
                 payment_created_at: payment.created_at || 0,
             });
-            try {
-                await this.paymentRepository.save(failedPaymentEntity);
-                await this.kafkaClient.emit('payment-failed', {
-                    razorpay_order_id: razorpay_order_id,
-                    razorpay_payment_id: payment.id,
-                    status: payment.status,
-                    amount: payment.amount / 100,
-                    error_code: payment.error_code,
-                    error_description: payment.error_description,
-                }).toPromise();
-                return {
-                    success: false,
-                    message: 'Payment failed',
-                    payment_id: payment.id,
-                    order_id: razorpay_order_id,
-                    error_description: payment.error_description || 'Payment was declined',
-                    status: payment.status,
-                };
-            }
-            catch (saveError) {
-                this.logger.error(`Failed to save failed payment: ${saveError.message}`);
-                throw new common_1.InternalServerErrorException('Failed to save payment failure record');
-            }
+            await this.paymentRepository.save(failedPaymentEntity);
+            return {
+                success: false,
+                message: 'Payment failed',
+                payment_id: payment.id,
+                order_id: razorpay_order_id,
+                error_description: payment.error_description || 'Payment was declined',
+                status: payment.status,
+            };
         }
         if (razorpay_signature) {
             const body = `${razorpay_order_id}|${razorpay_payment_id}`;
             const expectedSignature = crypto.createHmac('sha256', key_secret).update(body).digest('hex');
             if (expectedSignature !== razorpay_signature) {
-                this.logger.warn(`Invalid Razorpay signature for payment_id=${razorpay_payment_id}`);
                 throw new common_1.BadRequestException('Invalid Razorpay signature');
             }
         }
         else {
-            this.logger.warn(`Missing Razorpay signature for order_id=${razorpay_order_id}`);
             throw new common_1.BadRequestException('Missing Razorpay signature');
         }
         let payment;
@@ -189,7 +151,6 @@ let PaymentService = PaymentService_1 = class PaymentService {
             throw new common_1.InternalServerErrorException('Failed to fetch payment details');
         }
         if (payment.status !== 'captured') {
-            this.logger.warn(`Payment not captured: ${razorpay_payment_id}`);
             throw new common_1.BadRequestException('Payment is not captured');
         }
         const paymentEntity = this.paymentRepository.create({
@@ -221,25 +182,28 @@ let PaymentService = PaymentService_1 = class PaymentService {
             bank_transaction_id: payment.acquirer_data?.bank_transaction_id || null,
             payment_created_at: payment.created_at || 0,
         });
-        try {
-            await this.paymentRepository.save(paymentEntity);
-            await this.kafkaClient.emit('payment-verified', {
-                razorpay_order_id: razorpay_order_id,
-                razorpay_payment_id: payment.id,
-                status: payment.status,
-                amount: payment.amount / 100,
-            }).toPromise();
-            this.logger.log(`Payment verified and stored: ${razorpay_payment_id}`);
-            return {
-                success: true,
-                message: 'Payment verified and saved successfully',
-                payment_id: payment.id,
-                order_id: razorpay_order_id,
-            };
+        await this.paymentRepository.save(paymentEntity);
+        this.logger.log(`Payment verified and stored: ${razorpay_payment_id}`);
+        return {
+            success: true,
+            message: 'Payment verified and saved successfully',
+            payment_id: payment.id,
+            order_id: razorpay_order_id,
+        };
+    }
+    async verifyPayment(data) {
+        const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = data;
+        const key_secret = process.env.RAZORPAY_KEY_SECRET;
+        if (!key_secret) {
+            throw new common_1.InternalServerErrorException('Razorpay key secret not configured');
         }
-        catch (saveError) {
-            this.logger.error(`Failed to save successful payment: ${saveError.message}`);
-            throw new common_1.InternalServerErrorException('Failed to save payment record');
+        const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+        const expectedSignature = crypto.createHmac('sha256', key_secret).update(body).digest('hex');
+        if (expectedSignature === razorpay_signature) {
+            return { success: true, message: 'Payment verified successfully' };
+        }
+        else {
+            return { success: false, message: 'Invalid payment signature' };
         }
     }
 };

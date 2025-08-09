@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
@@ -24,13 +25,19 @@ interface CheckoutData {
   total: number;
 }
 
+interface Order {
+  id: string;
+  amount: number;
+  currency: string;
+  receipt: string;
+  status: string;
+}
+
 interface OrderResponse {
   success: boolean;
-  order: {
-    id: string;
-    amount: number;
-    currency: string;
-  };
+  saga_id: string;
+  message: string;
+  order: Order;
 }
 
 interface User {
@@ -64,7 +71,7 @@ export default function PaymentPage() {
   // Create axios instance with auth interceptor
   const createAxiosInstance = () => {
     const instance = axios.create();
-    
+
     instance.interceptors.request.use((config) => {
       const token = getAccessToken();
       if (token) {
@@ -90,7 +97,7 @@ export default function PaymentPage() {
   useEffect(() => {
     const data = localStorage.getItem('checkoutData');
     const userData = getUserData();
-    
+
     if (data) {
       try {
         const parsedData: CheckoutData = JSON.parse(data);
@@ -142,42 +149,38 @@ export default function PaymentPage() {
       return;
     }
 
-    let orderData: OrderResponse['order'] | null = null;
     const axiosInstance = createAxiosInstance();
 
     try {
-      // Reserve inventory for all cart items
-      for (const item of cartItems) {
-        await axiosInstance.post(
-          'http://localhost:2000/api/product/reserve-stock',
-          {
-            productId: item.productId,
-            quantity: item.quantity,
-          },
-          { timeout: 5000 }
-        );
-      }
-
-      // Create order with required fields
-      // Generate a product_id from cart items (you might want to adjust this logic)
+      // Generate a product_id from cart items
       const productIds = cartItems.map(item => item.productId).join(',');
-      
+
       const { data }: { data: OrderResponse } = await axiosInstance.post(
         `http://localhost:2004/api/payment/order`,
-        { 
-          amount: total, // Send original amount, not in paise
+        {
+          total_amount: total,
           currency: 'INR',
-          user_id: user.id, // Add required user_id
-          product_id: productIds // Add required product_id (composite of all products)
+          checkout_data: checkoutData,
+          product_id: productIds
         },
         { timeout: 10000 }
       );
 
-      if (!data.success || !data.order) {
-        throw new Error('Failed to create order');
+      console.log("------------------------->", data);
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to start payment process');
       }
 
-      orderData = data.order;
+      // Check if order data exists in the response
+      if (!data.order) {
+        throw new Error('Order data not received from server. Please check your backend response.');
+      }
+
+      const orderData = data.order;
+
+      // Store sagaId for cancel handling
+      localStorage.setItem('sagaId', data.saga_id);
 
       // Create form and submit to Razorpay
       const form = document.createElement('form');
@@ -187,16 +190,16 @@ export default function PaymentPage() {
       // Add form fields
       const fields = {
         key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_StrkvgR0IMUtoF',
-        amount: data.order.amount.toString(),
-        currency: data.order.currency,
-        order_id: data.order.id,
+        amount: (orderData.amount * 100).toString(), // Convert to paise
+        currency: orderData.currency,
+        order_id: orderData.id,
         name: 'Delente Technologies Pvt. Ltd.',
         description: 'Payment for Cart Items',
-        prefill_name: user.emailId.split('@')[0] || 'Customer', // Use user data
-        prefill_email: user.emailId, // Use user email
+        prefill_name: user.emailId.split('@')[0] || 'Customer',
+        prefill_email: user.emailId,
         notes_address: 'M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002',
         theme_color: '#1E40AF',
-        callback_url: `http://localhost:2004/api/payment/callback`, // Fixed port to match your API
+        callback_url: `http://localhost:2004/api/payment/callback`,
         cancel_url: `${window.location.origin}/payment/cancel`,
       };
 
@@ -211,54 +214,12 @@ export default function PaymentPage() {
       document.body.appendChild(form);
       form.submit();
 
-      // Clear local storage after successful payment initiation
-      localStorage.removeItem('checkoutData');
     } catch (err: any) {
-      // Release inventory for all cart items on error
-      try {
-        for (const item of cartItems) {
-          await axiosInstance.post(
-            'http://localhost:2000/api/product/release-stock',
-            {
-              productId: item.productId,
-              quantity: item.quantity,
-            },
-            { timeout: 5000 }
-          );
-        }
-      } catch (releaseErr) {
-        console.error('Failed to release inventory:', releaseErr);
-      }
-
-      // Log payment failure if order was created
-      if (orderData) {
-        try {
-          await axiosInstance.post('http://localhost:2004/api/payment/failure', {
-            id: orderData.id,
-            paymentId: null,
-            errorCode: err.response?.status?.toString() || 'UNKNOWN_ERROR',
-            errorDescription: err.response?.data?.message || err.message || 'Payment initialization failed',
-            errorReason: 'ORDER_CREATION_FAILED',
-            type: 'frontend_error',
-            userId: user.id,
-          });
-        } catch (logErr) {
-          console.error('Failed to log payment failure:', logErr);
-        }
-      }
-
-      // Handle authentication errors
-      if (err.response?.status === 401) {
-        setError('Authentication failed. Please login again.');
-        // Optionally redirect to login page
-        // window.location.href = '/login';
-      } else {
-        setError(
-          err.response?.data?.message ||
-            err.message ||
-            'Failed to process payment or reserve inventory'
-        );
-      }
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to process payment'
+      );
       setLoading(false);
     }
   };
@@ -291,7 +252,7 @@ export default function PaymentPage() {
 
         {/* User Info */}
         <div className="mb-4 text-sm text-gray-600">
-          <p>Logged in as: {user.emailId}</p>
+          <p>Logged in as: {user.emailId.split('@')[0]}</p>
         </div>
 
         {/* Order Summary */}

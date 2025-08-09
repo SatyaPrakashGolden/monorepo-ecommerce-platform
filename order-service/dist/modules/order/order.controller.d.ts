@@ -6,7 +6,5 @@ export declare class OrderController {
     private readonly logger;
     constructor(orderService: OrderService);
     createOrder(createOrderDto: CreateOrderDto): Promise<Order>;
-    handlePaymentOrderCreated(data: any): Promise<void>;
-    handlePaymentVerified(data: any): Promise<void>;
-    handlePaymentFailed(data: any): Promise<void>;
+    handleOrderCreate(data: any): Promise<void>;
 }

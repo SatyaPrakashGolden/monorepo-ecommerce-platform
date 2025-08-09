@@ -1,2351 +1,803 @@
-// /home/satya/myproject/order-service/src/modules/order/entities/order.entity.ts
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  Index,
-} from 'typeorm';
-
-export enum OrderStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing',
-  PAID = 'paid',
-  SUCCESS = 'success',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled',
-}
-
-@Entity('orders')
-@Index(['user_id', 'status'])
-@Index(['razorpay_order_id'])
-@Index(['created_at'])
-export class Order {
-  @PrimaryGeneratedColumn({ name: 'order_id' })
-  id: number;
-
-  @Column({ type: 'int', nullable: false })
-  @Index()
-  user_id: number;
-
-  @Column({ type: 'varchar', length: 24, nullable: true })
-  seller_id: string;
-
-  @Column({ type: 'varchar', length: 24, nullable: true })
-  variant_id: string;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  total_amount: string;
-
-  @Column({ type: 'varchar', length: 10, default: 'INR' })
-  currency: string;
-
-  @Column({
-    type: 'enum',
-    enum: OrderStatus,
-    default: OrderStatus.PENDING,
-  })
-  @Index()
-  status: OrderStatus;
-
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  razorpay_order_id: string;
-
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  receipt: string;
-
-  @Column({ type: 'bigint', nullable: true })
-  razorpay_created_at: number;
-
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  gateway_type: string;
-
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  gateway_order_id: string;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  idempotency_key: string;
-
-  @Column({ type: 'int', default: 0 })
-  version: number; // Optimistic locking
-
-  @CreateDateColumn({ type: 'timestamp' })
-  created_at: Date;
-
-  @UpdateDateColumn({ type: 'timestamp' })
-  updated_at: Date;
-}
-
-// /home/satya/myproject/order-service/src/modules/saga/entities/saga.entity.ts
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  Index,
-} from 'typeorm';
-
-export enum SagaStatus {
-  STARTED = 'started',
-  RUNNING = 'running',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  COMPENSATING = 'compensating',
-  COMPENSATED = 'compensated',
-  COMPENSATION_FAILED = 'compensation_failed',
-  CANCELLED = 'cancelled',
-}
-
-export enum SagaStepStatus {
-  PENDING = 'pending',
-  RUNNING = 'running',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  COMPENSATING = 'compensating',
-  COMPENSATED = 'compensated',
-  COMPENSATION_FAILED = 'compensation_failed',
-  SKIPPED = 'skipped',
-}
-
-@Entity('saga_transactions')
-@Index(['saga_id'])
-@Index(['status'])
-@Index(['saga_type'])
-@Index(['created_at'])
-export class SagaTransaction {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column({ type: 'varchar', length: 100, unique: true })
-  saga_id: string;
-
-  @Column({ type: 'varchar', length: 50 })
-  saga_type: string;
-
-  @Column({
-    type: 'enum',
-    enum: SagaStatus,
-    default: SagaStatus.STARTED,
-  })
-  status: SagaStatus;
-
-  @Column({ type: 'json' })
-  payload: any;
-
-  @Column({ type: 'int', default: 0 })
-  current_step: number;
-
-  @Column({ type: 'int', default: 0 })
-  total_steps: number;
-
-  @Column({ type: 'json', nullable: true })
-  context: any; // Store intermediate results
-
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  error_message: string;
-
-  @Column({ type: 'timestamp', nullable: true })
-  started_at: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  completed_at: Date;
-
-  @Column({ type: 'int', default: 0 })
-  retry_count: number;
-
-  @Column({ type: 'int', default: 3 })
-  max_retries: number;
-
-  @CreateDateColumn({ type: 'timestamp' })
-  created_at: Date;
-
-  @UpdateDateColumn({ type: 'timestamp' })
-  updated_at: Date;
-}
-
-@Entity('saga_steps')
-@Index(['saga_id', 'step_order'])
-@Index(['status'])
-export class SagaStep {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column({ type: 'varchar', length: 100 })
-  saga_id: string;
-
-  @Column({ type: 'varchar', length: 100 })
-  step_name: string;
-
-  @Column({ type: 'int' })
-  step_order: number;
-
-  @Column({
-    type: 'enum',
-    enum: SagaStepStatus,
-    default: SagaStepStatus.PENDING,
-  })
-  status: SagaStepStatus;
-
-  @Column({ type: 'json', nullable: true })
-  step_data: any;
-
-  @Column({ type: 'json', nullable: true })
-  compensation_data: any;
-
-  @Column({ type: 'varchar', length: 1000, nullable: true })
-  error_message: string;
-
-  @Column({ type: 'int', default: 0 })
-  retry_count: number;
-
-  @Column({ type: 'int', default: 0 })
-  max_retries: number;
-
-  @Column({ type: 'timestamp', nullable: true })
-  started_at: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  completed_at: Date;
-
-  @CreateDateColumn({ type: 'timestamp' })
-  created_at: Date;
-
-  @UpdateDateColumn({ type: 'timestamp' })
-  updated_at: Date;
-}
-
-// /home/satya/myproject/order-service/src/modules/order/order.service.ts
-import { Injectable, Logger, ConflictException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, QueryRunner, DataSource } from 'typeorm';
-import { Order, OrderStatus } from './entities/order.entity';
-import { CreateOrderDto } from './dto/create-order.dto';
-import Razorpay from 'razorpay';
-import { Cache } from 'cache-manager';
-import { Inject } from '@nestjs/common';
-
-@Injectable()
-export class OrderService {
-  private readonly logger = new Logger(OrderService.name);
-  private readonly razorpay: Razorpay;
-
-  constructor(
-    @InjectRepository(Order)
-    private readonly orderRepository: Repository<Order>,
-    private readonly dataSource: DataSource,
-    @Inject('CACHE_MANAGER') private readonly cacheManager: Cache,
-  ) {
-    this.razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
-  }
-
-  async createOrder(
-    createOrderDto: CreateOrderDto,
-    queryRunner?: QueryRunner,
-  ): Promise<Order> {
-    const repository = queryRunner ? queryRunner.manager.getRepository(Order) : this.orderRepository;
-    
-    // Check for duplicate using idempotency key
-    if (createOrderDto.idempotencyKey) {
-      const existingOrder = await repository.findOne({
-        where: { idempotency_key: createOrderDto.idempotencyKey },
-      });
-      if (existingOrder) {
-        this.logger.log(`Duplicate order creation attempt: ${createOrderDto.idempotencyKey}`);
-        return existingOrder;
-      }
-    }
-
-    const { paymentGateway, ...orderData } = createOrderDto;
-    const order = repository.create({
-      ...orderData,
-      status: OrderStatus.PENDING,
-      gateway_type: paymentGateway,
-      idempotency_key: createOrderDto.idempotencyKey,
-    });
-
-    try {
-      let gatewayOrderId: string;
-      
-      if (paymentGateway === 'razorpay') {
-        const razorpayOrder = await this.razorpay.orders.create({
-          amount: parseFloat(orderData.total_amount) * 100, // Convert to paise
-          currency: orderData.currency,
-          receipt: `receipt_${Date.now()}`,
-          notes: { 
-            internalOrderId: 'temp', // Will be updated after save
-            idempotencyKey: createOrderDto.idempotencyKey || '',
-          },
-        });
-        gatewayOrderId = razorpayOrder.id;
-        order.razorpay_order_id = gatewayOrderId;
-      }
-
-      order.gateway_order_id = gatewayOrderId;
-      const savedOrder = await repository.save(order);
-      
-      // Update notes with actual order ID if needed
-      if (paymentGateway === 'razorpay' && gatewayOrderId) {
-        await this.razorpay.orders.edit(gatewayOrderId, {
-          notes: { 
-            internalOrderId: savedOrder.id.toString(),
-            idempotencyKey: createOrderDto.idempotencyKey || '',
-          },
-        });
-      }
-
-      // Cache the order for quick access
-      await this.cacheManager.set(`order:${savedOrder.id}`, savedOrder, 300); // 5 min cache
-
-      this.logger.log(`Order ${savedOrder.id} created with ${paymentGateway} order ID ${gatewayOrderId}`);
-      return savedOrder;
-    } catch (error) {
-      this.logger.error(`Failed to create order: ${error.message}`);
-      throw error;
-    }
-  }
-
-  async updateOrderStatus(
-    orderId: number,
-    status: OrderStatus,
-    queryRunner?: QueryRunner,
-  ): Promise<Order> {
-    const repository = queryRunner ? queryRunner.manager.getRepository(Order) : this.orderRepository;
-    
-    let retryCount = 0;
-    const maxRetries = 3;
-
-    while (retryCount < maxRetries) {
-      try {
-        const order = await repository.findOne({ 
-          where: { id: orderId },
-          lock: { mode: 'pessimistic_write' }, // Prevent race conditions
-        });
-        
-        if (!order) {
-          throw new Error(`Order ${orderId} not found`);
-        }
-
-        if (order.status === status) {
-          this.logger.log(`Order ${orderId} already in status ${status}`);
-          return order;
-        }
-
-        // Business logic: validate status transitions
-        if (!this.isValidStatusTransition(order.status, status)) {
-          throw new Error(`Invalid status transition from ${order.status} to ${status}`);
-        }
-
-        const previousStatus = order.status;
-        order.status = status;
-        order.version += 1; // Optimistic locking
-
-        const updatedOrder = await repository.save(order);
-        
-        // Update cache
-        await this.cacheManager.set(`order:${orderId}`, updatedOrder, 300);
-        
-        // Clear related caches
-        await this.cacheManager.del(`user_orders:${order.user_id}`);
-
-        this.logger.log(`Order ${orderId} status updated from ${previousStatus} to ${status}`);
-        return updatedOrder;
-      } catch (error) {
-        if (error.code === '23505' || error.message.includes('version')) {
-          // Optimistic lock failure or duplicate key
-          retryCount++;
-          if (retryCount >= maxRetries) {
-            throw new ConflictException(`Failed to update order ${orderId} after ${maxRetries} retries`);
-          }
-          // Wait before retry with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
-          continue;
-        }
-        throw error;
-      }
-    }
-  }
-
-  async getOrder(orderId: number): Promise<Order> {
-    // Try cache first
-    const cachedOrder = await this.cacheManager.get<Order>(`order:${orderId}`);
-    if (cachedOrder) {
-      return cachedOrder;
-    }
-
-    const order = await this.orderRepository.findOne({ where: { id: orderId } });
-    if (!order) {
-      throw new Error(`Order ${orderId} not found`);
-    }
-
-    // Cache for future requests
-    await this.cacheManager.set(`order:${orderId}`, order, 300);
-    return order;
-  }
-
-  private isValidStatusTransition(currentStatus: OrderStatus, newStatus: OrderStatus): boolean {
-    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
-      [OrderStatus.PENDING]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-      [OrderStatus.PROCESSING]: [OrderStatus.PAID, OrderStatus.FAILED, OrderStatus.CANCELLED],
-      [OrderStatus.PAID]: [OrderStatus.SUCCESS, OrderStatus.FAILED],
-      [OrderStatus.SUCCESS]: [], // Terminal state
-      [OrderStatus.FAILED]: [OrderStatus.CANCELLED], // Allow cancellation after failure
-      [OrderStatus.CANCELLED]: [], // Terminal state
-    };
-
-    return validTransitions[currentStatus]?.includes(newStatus) || false;
-  }
-
-  async rollbackOrderCreation(orderId: number, queryRunner?: QueryRunner): Promise<void> {
-    const repository = queryRunner ? queryRunner.manager.getRepository(Order) : this.orderRepository;
-    
-    try {
-      const order = await repository.findOne({ where: { id: orderId } });
-      if (order) {
-        // Cancel Razorpay order if exists
-        if (order.razorpay_order_id) {
-          try {
-            // Note: Razorpay doesn't have direct cancel API for orders
-            // But we can mark it as cancelled in our system
-            this.logger.log(`Marking Razorpay order ${order.razorpay_order_id} as cancelled`);
-          } catch (error) {
-            this.logger.error(`Failed to cancel Razorpay order: ${error.message}`);
-          }
-        }
-
-        await repository.remove(order);
-        await this.cacheManager.del(`order:${orderId}`);
-        this.logger.log(`Order ${orderId} rolled back and removed`);
-      }
-    } catch (error) {
-      this.logger.error(`Failed to rollback order ${orderId}: ${error.message}`);
-      throw error;
-    }
-  }
-}
-
-// /home/satya/myproject/order-service/src/modules/saga/saga.orchestrator.ts
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner } from 'typeorm';
-import { ClientKafka, EventPattern } from '@nestjs/microservices';
-import { Inject } from '@nestjs/common';
-import { OrderService } from '../order/order.service';
-import { Order, OrderStatus } from '../order/entities/order.entity';
-import { SagaTransaction, SagaStep, SagaStatus, SagaStepStatus } from './entities/saga.entity';
-import { CircuitBreaker } from './circuit-breaker';
-import { RateLimiter } from './rate-limiter';
-import { Cache } from 'cache-manager';
-import * as crypto from 'crypto';
-
-interface SagaStepDefinition {
+// /home/satya/myproject/frontend/app/payment/page.tsx
+'use client';
+
+import { useState, useEffect, FormEvent } from 'react';
+import axios from 'axios';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+
+interface CartItem {
+  productId: string;
   name: string;
-  execute: (payload: any, context: any, queryRunner: QueryRunner) => Promise<any>;
-  compensate: (payload: any, stepData: any, context: any, queryRunner: QueryRunner) => Promise<void>;
-  timeout: number;
-  retryCount?: number;
-  isAsync?: boolean;
-  isIdempotent?: boolean;
+  price: number;
+  image: string;
+  size: string;
+  color: string;
+  quantity: number;
 }
 
-interface PendingAsyncStep {
-  sagaId: string;
-  sagaType: string;
-  stepName: string;
-  timeout: NodeJS.Timeout;
-  expiresAt: Date;
+interface CheckoutData {
+  cartItems: CartItem[];
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
 }
 
-@Injectable()
-export class SagaOrchestrator implements OnModuleInit {
-  private readonly logger = new Logger(SagaOrchestrator.name);
-  private readonly sagaSteps: Map<string, SagaStepDefinition[]> = new Map();
-  private readonly pendingAsyncSteps: Map<string, PendingAsyncStep> = new Map();
-  private readonly circuitBreaker: CircuitBreaker;
-  private readonly rateLimiter: RateLimiter;
-  private cleanupInterval: NodeJS.Timeout;
-
-  constructor(
-    @InjectRepository(SagaTransaction)
-    private readonly sagaRepository: Repository<SagaTransaction>,
-    @InjectRepository(SagaStep)
-    private readonly stepRepository: Repository<SagaStep>,
-    @InjectRepository(Order)
-    private readonly orderRepository: Repository<Order>,
-    @Inject('KAFKA_CLIENT') private readonly kafkaClient: ClientKafka,
-    @Inject('CACHE_MANAGER') private readonly cacheManager: Cache,
-    private readonly orderService: OrderService,
-    private readonly dataSource: DataSource,
-  ) {
-    this.circuitBreaker = new CircuitBreaker({
-      failureThreshold: 5,
-      recoveryTimeout: 30000,
-      timeout: 60000,
-    });
-    
-    this.rateLimiter = new RateLimiter({
-      maxRequests: 1000, // 1000 requests per minute per instance
-      windowMs: 60000,
-    });
-
-    this.initializePaymentSaga();
-    this.startCleanupJob();
-  }
-
-  async onModuleInit() {
-    // Subscribe to Kafka topics
-    const topics = [
-      'payment.create.requested',
-      'payment.process.requested',
-      'payment.cancel.requested',
-      'payment.created',
-      'payment.captured',
-      'payment.failed',
-    ];
-
-    for (const topic of topics) {
-      await this.kafkaClient.subscribeToResponseOf(topic);
-    }
-    
-    await this.kafkaClient.connect();
-    
-    // Resume any interrupted sagas on startup
-    await this.resumeInterruptedSagas();
-  }
-
-  private initializePaymentSaga() {
-    const paymentSagaSteps: SagaStepDefinition[] = [
-      {
-        name: 'VALIDATE_ORDER',
-        execute: this.validateOrder.bind(this),
-        compensate: this.cancelOrder.bind(this),
-        timeout: 5000,
-        retryCount: 3,
-        isIdempotent: true,
-      },
-      {
-        name: 'CREATE_PAYMENT',
-        execute: this.createPayment.bind(this),
-        compensate: this.cancelPayment.bind(this),
-        timeout: 30000,
-        retryCount: 2,
-        isAsync: true,
-        isIdempotent: true,
-      },
-      {
-        name: 'PROCESS_PAYMENT',
-        execute: this.processPayment.bind(this),
-        compensate: this.refundPayment.bind(this),
-        timeout: 60000,
-        retryCount: 1,
-        isAsync: true,
-        isIdempotent: true,
-      },
-      {
-        name: 'UPDATE_ORDER_STATUS',
-        execute: this.updateOrderStatus.bind(this),
-        compensate: this.revertOrderStatus.bind(this),
-        timeout: 5000,
-        retryCount: 3,
-        isIdempotent: true,
-      },
-    ];
-    this.sagaSteps.set('PAYMENT_SAGA', paymentSagaSteps);
-  }
-
-  async executeSaga(sagaType: string, payload: any): Promise<string> {
-    // Rate limiting
-    if (!this.rateLimiter.allowRequest()) {
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
-
-    // Generate idempotent saga ID
-    const sagaId = this.generateSagaId(payload);
-    
-    // Check if saga already exists (idempotency)
-    const existingSaga = await this.sagaRepository.findOne({ where: { saga_id: sagaId } });
-    if (existingSaga) {
-      this.logger.log(`Saga ${sagaId} already exists, returning existing saga`);
-      return sagaId;
-    }
-
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      const steps = this.sagaSteps.get(sagaType);
-      if (!steps) {
-        throw new Error(`Saga type ${sagaType} not found`);
-      }
-
-      const sagaTransaction = queryRunner.manager.create(SagaTransaction, {
-        saga_id: sagaId,
-        saga_type: sagaType,
-        status: SagaStatus.STARTED,
-        payload,
-        current_step: 0,
-        total_steps: steps.length,
-        context: {},
-        started_at: new Date(),
-      });
-
-      await queryRunner.manager.save(sagaTransaction);
-
-      const sagaSteps = steps.map((step, index) =>
-        queryRunner.manager.create(SagaStep, {
-          saga_id: sagaId,
-          step_name: step.name,
-          step_order: index,
-          status: SagaStepStatus.PENDING,
-          retry_count: 0,
-          max_retries: step.retryCount || 0,
-        })
-      );
-
-      await queryRunner.manager.save(sagaSteps);
-      await queryRunner.commitTransaction();
-
-      // Cache saga for quick access
-      await this.cacheManager.set(`saga:${sagaId}`, sagaTransaction, 1800); // 30 min
-
-      // Start execution asynchronously
-      setImmediate(() => this.executeNextStep(sagaId, sagaType));
-
-      this.logger.log(`Saga ${sagaId} created and started`);
-      return sagaId;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(`Failed to create saga: ${error.message}`);
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  private async executeNextStep(sagaId: string, sagaType: string) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-
-    try {
-      await queryRunner.startTransaction();
-
-      const saga = await queryRunner.manager.findOne(SagaTransaction, { 
-        where: { saga_id: sagaId },
-        lock: { mode: 'pessimistic_write' },
-      });
-      
-      const steps = this.sagaSteps.get(sagaType);
-
-      if (!saga || !steps || saga.status !== SagaStatus.STARTED) {
-        await queryRunner.rollbackTransaction();
-        return;
-      }
-
-      const currentStepIndex = saga.current_step;
-      if (currentStepIndex >= steps.length) {
-        await this.completeSaga(sagaId, queryRunner);
-        await queryRunner.commitTransaction();
-        return;
-      }
-
-      const stepDefinition = steps[currentStepIndex];
-      const stepRecord = await queryRunner.manager.findOne(SagaStep, {
-        where: { saga_id: sagaId, step_order: currentStepIndex },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (!stepRecord) {
-        await queryRunner.rollbackTransaction();
-        return;
-      }
-
-      // Check if step is already completed
-      if (stepRecord.status === SagaStepStatus.COMPLETED) {
-        saga.current_step = currentStepIndex + 1;
-        await queryRunner.manager.save(saga);
-        await queryRunner.commitTransaction();
-        return this.executeNextStep(sagaId, sagaType);
-      }
-
-      // Check if step is already running (prevent duplicate execution)
-      if (stepRecord.status === SagaStepStatus.RUNNING) {
-        await queryRunner.rollbackTransaction();
-        return;
-      }
-
-      this.logger.log(`Executing step ${stepDefinition.name} for saga ${sagaId}`);
-
-      stepRecord.status = SagaStepStatus.RUNNING;
-      stepRecord.started_at = new Date();
-      await queryRunner.manager.save(stepRecord);
-
-      await queryRunner.commitTransaction();
-
-      try {
-        let stepResult: any;
-
-        await this.circuitBreaker.execute(async () => {
-          if (stepDefinition.isAsync) {
-            // For async steps, execute and wait for external event
-            stepResult = await stepDefinition.execute(saga.payload, saga.context, queryRunner);
-            
-            // Set up timeout for async operation
-            const timeoutId = setTimeout(() => {
-              this.handleStepTimeout(sagaId, sagaType, stepDefinition.name);
-            }, stepDefinition.timeout);
-
-            this.pendingAsyncSteps.set(`${sagaId}_${stepDefinition.name}`, {
-              sagaId,
-              sagaType,
-              stepName: stepDefinition.name,
-              timeout: timeoutId,
-              expiresAt: new Date(Date.now() + stepDefinition.timeout),
-            });
-
-            // Don't proceed to next step yet - wait for external event
-          } else {
-            // For sync steps, execute with timeout
-            stepResult = await Promise.race([
-              stepDefinition.execute(saga.payload, saga.context, queryRunner),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Step timeout')), stepDefinition.timeout)
-              ),
-            ]);
-
-            await this.completeStep(sagaId, sagaType, stepDefinition.name, stepResult);
-          }
-        });
-      } catch (error) {
-        await this.handleStepError(sagaId, sagaType, stepDefinition.name, error);
-      }
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(`Saga execution error for ${sagaId}: ${error.message}`);
-      await this.failSaga(sagaId);
-    } finally {
-      if (!queryRunner.isReleased) {
-        await queryRunner.release();
-      }
-    }
-  }
-
-  private async completeStep(sagaId: string, sagaType: string, stepName: string, stepResult: any) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      const stepRecord = await queryRunner.manager.findOne(SagaStep, {
-        where: { saga_id: sagaId, step_name: stepName },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      const saga = await queryRunner.manager.findOne(SagaTransaction, {
-        where: { saga_id: sagaId },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (stepRecord && saga) {
-        stepRecord.status = SagaStepStatus.COMPLETED;
-        stepRecord.step_data = stepResult;
-        stepRecord.completed_at = new Date();
-        await queryRunner.manager.save(stepRecord);
-
-        // Update saga context with step result
-        saga.context = { ...saga.context, [stepName]: stepResult };
-        saga.current_step = stepRecord.step_order + 1;
-        await queryRunner.manager.save(saga);
-
-        await queryRunner.commitTransaction();
-        
-        // Update cache
-        await this.cacheManager.set(`saga:${sagaId}`, saga, 1800);
-        
-        // Continue to next step
-        setImmediate(() => this.executeNextStep(sagaId, sagaType));
-      } else {
-        await queryRunner.rollbackTransaction();
-      }
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(`Failed to complete step ${stepName} for saga ${sagaId}: ${error.message}`);
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  private async handleStepError(sagaId: string, sagaType: string, stepName: string, error: Error) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      const stepRecord = await queryRunner.manager.findOne(SagaStep, {
-        where: { saga_id: sagaId, step_name: stepName },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (!stepRecord) {
-        await queryRunner.rollbackTransaction();
-        return;
-      }
-
-      this.logger.error(`Step ${stepName} failed for saga ${sagaId}: ${error.message}`);
-
-      // Check if we can retry
-      if (stepRecord.retry_count < stepRecord.max_retries) {
-        stepRecord.retry_count++;
-        stepRecord.status = SagaStepStatus.PENDING;
-        stepRecord.error_message = error.message;
-        await queryRunner.manager.save(stepRecord);
-        await queryRunner.commitTransaction();
-
-        // Retry with exponential backoff
-        const retryDelay = Math.min(Math.pow(2, stepRecord.retry_count) * 1000, 30000); // Max 30s
-        setTimeout(() => {
-          this.executeNextStep(sagaId, sagaType);
-        }, retryDelay);
-      } else {
-        // Max retries exceeded, start compensation
-        stepRecord.status = SagaStepStatus.FAILED;
-        stepRecord.error_message = error.message;
-        await queryRunner.manager.save(stepRecord);
-        await queryRunner.commitTransaction();
-        
-        await this.startCompensation(sagaId, sagaType);
-      }
-    } catch (dbError) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(`Failed to handle step error: ${dbError.message}`);
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  private async handleStepTimeout(sagaId: string, sagaType: string, stepName: string) {
-    this.logger.error(`Step ${stepName} timed out for saga ${sagaId}`);
-    
-    // Remove from pending async steps
-    this.pendingAsyncSteps.delete(`${sagaId}_${stepName}`);
-    
-    // Handle as error
-    await this.handleStepError(sagaId, sagaType, stepName, new Error('Step timeout'));
-  }
-
-  private async startCompensation(sagaId: string, sagaType: string) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      const saga = await queryRunner.manager.findOne(SagaTransaction, {
-        where: { saga_id: sagaId },
-        lock: { mode: 'pessimistic_write' },
-      });
-      
-      const steps = this.sagaSteps.get(sagaType);
-
-      if (!saga || !steps) {
-        await queryRunner.rollbackTransaction();
-        return;
-      }
-
-      saga.status = SagaStatus.COMPENSATING;
-      await queryRunner.manager.save(saga);
-      await queryRunner.commitTransaction();
-
-      this.logger.log(`Starting compensation for saga ${sagaId}`);
-
-      // Get all completed steps in reverse order
-      const completedSteps = await this.stepRepository.find({
-        where: { saga_id: sagaId, status: SagaStepStatus.COMPLETED },
-        order: { step_order: 'DESC' },
-      });
-
-      let compensationFailed = false;
-
-      for (const stepRecord of completedSteps) {
-        const stepDefinition = steps.find((s) => s.name === stepRecord.step_name);
-        if (stepDefinition) {
-          const stepQueryRunner = this.dataSource.createQueryRunner();
-          await stepQueryRunner.connect();
-          await stepQueryRunner.startTransaction();
-
-          try {
-            this.logger.log(`Compensating step ${stepRecord.step_name} for saga ${sagaId}`);
-            
-            stepRecord.status = SagaStepStatus.COMPENSATING;
-            await stepQueryRunner.manager.save(stepRecord);
-
-            await stepDefinition.compensate(
-              saga.payload, 
-              stepRecord.step_data, 
-              saga.context,
-              stepQueryRunner
-            );
-            
-            stepRecord.status = SagaStepStatus.COMPENSATED;
-            stepRecord.compensation_data = { compensated_at: new Date() };
-            await stepQueryRunner.manager.save(stepRecord);
-            await stepQueryRunner.commitTransaction();
-            
-            this.logger.log(`Successfully compensated step ${stepRecord.step_name} for saga ${sagaId}`);
-          } catch (error) {
-            await stepQueryRunner.rollbackTransaction();
-            this.logger.error(`Compensation failed for step ${stepRecord.step_name}: ${error.message}`);
-            stepRecord.status = SagaStepStatus.COMPENSATION_FAILED;
-            stepRecord.error_message = error.message;
-            await this.stepRepository.save(stepRecord);
-            compensationFailed = true;
-          } finally {
-            await stepQueryRunner.release();
-          }
-        }
-      }
-
-      if (compensationFailed) {
-        await this.updateSagaStatus(sagaId, SagaStatus.COMPENSATION_FAILED);
-        this.logger.error(`Saga ${sagaId} compensation partially failed - manual intervention required`);
-      } else {
-        await this.updateSagaStatus(sagaId, SagaStatus.COMPENSATED);
-        this.logger.log(`Saga ${sagaId} successfully compensated`);
-      }
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(`Failed to start compensation for saga ${sagaId}: ${error.message}`);
-    } finally {
-      if (!queryRunner.isReleased) {
-        await queryRunner.release();
-      }
-    }
-  }
-
-  // Kafka Event Handlers with Idempotency
-  @EventPattern('payment.created')
-  async handlePaymentCreated(data: any) {
-    const { orderId, paymentId, status, sagaId } = data;
-    
-    try {
-      // Find pending async step by saga ID if provided, otherwise search
-      let pendingKey: string;
-      if (sagaId) {
-        pendingKey = `${sagaId}_CREATE_PAYMENT`;
-      } else {
-        pendingKey = Array.from(this.pendingAsyncSteps.keys()).find(key => 
-          this.pendingAsyncSteps.get(key)?.stepName === 'CREATE_PAYMENT'
-        );
-      }
-
-      if (pendingKey && this.pendingAsyncSteps.has(pendingKey)) {
-        const pending = this.pendingAsyncSteps.get(pendingKey);
-        clearTimeout(pending.timeout);
-        this.pendingAsyncSteps.delete(pendingKey);
-
-        if (status === 'CREATED' || status === 'created') {
-          await this.completeStep(pending.sagaId, pending.sagaType, 'CREATE_PAYMENT', {
-            orderId,
-            paymentId,
-            status,
-            createdAt: new Date(),
-          });
-        } else {
-          await this.handleStepError(
-            pending.sagaId, 
-            pending.sagaType, 
-            'CREATE_PAYMENT', 
-            new Error(`Payment creation failed: ${status}`)
-          );
-        }
-      } else {
-        this.logger.warn(`No pending CREATE_PAYMENT step found for payment ${paymentId}`);
-      }
-    } catch (error) {
-      this.logger.error(`Error handling payment.created event: ${error.message}`);
-    }
-  }
-
-  @EventPattern('payment.captured')
-  async handlePaymentCaptured(data: any) {
-    const { orderId, paymentId, status, sagaId } = data;
-    
-    try {
-      let pendingKey: string;
-      if (sagaId) {
-        pendingKey = `${sagaId}_PROCESS_PAYMENT`;
-      } else {
-        pendingKey = Array.from(this.pendingAsyncSteps.keys()).find(key => 
-          this.pendingAsyncSteps.get(key)?.stepName === 'PROCESS_PAYMENT'
-        );
-      }
-
-      if (pendingKey && this.pendingAsyncSteps.has(pendingKey)) {
-        const pending = this.pendingAsyncSteps.get(pendingKey);
-        clearTimeout(pending.timeout);
-        this.pendingAsyncSteps.delete(pendingKey);
-
-        await this.completeStep(pending.sagaId, pending.sagaType, 'PROCESS_PAYMENT', {
-          orderId,
-          paymentId,
-          status: 'CAPTURED',
-          capturedAt: new Date(),
-        });
-      } else {
-        this.logger.warn(`No pending PROCESS_PAYMENT step found for payment ${paymentId}`);
-      }
-    } catch (error) {
-      this.logger.error(`Error handling payment.captured event: ${error.message}`);
-    }
-  }
-
-  @EventPattern('payment.failed')
-  async handlePaymentFailed(data: any) {
-    const { orderId, paymentId, error, sagaId } = data;
-    
-    try {
-      // Check both CREATE_PAYMENT and PROCESS_PAYMENT steps
-      const stepNames = ['CREATE_PAYMENT', 'PROCESS_PAYMENT'];
-      
-      for (const stepName of stepNames) {
-        let pendingKey: string;
-        if (sagaId) {
-          pendingKey = `${sagaId}_${stepName}`;
-        } else {
-          pendingKey = Array.from(this.pendingAsyncSteps.keys()).find(key => 
-            this.pendingAsyncSteps.get(key)?.stepName === stepName
-          );
-        }
-
-        if (pendingKey && this.pendingAsyncSteps.has(pendingKey)) {
-          const pending = this.pendingAsyncSteps.get(pendingKey);
-          clearTimeout(pending.timeout);
-          this.pendingAsyncSteps.delete(pendingKey);
-
-          await this.handleStepError(
-            pending.sagaId,
-            pending.sagaType,
-            stepName,
-            new Error(`Payment failed: ${error}`)
-          );
-          break;
-        }
-      }
-    } catch (err) {
-      this.logger.error(`Error handling payment.failed event: ${err.message}`);
-    }
-  }
-
-  // Step Implementation Methods with Complete Rollback
-  private async validateOrder(payload: any, context: any, queryRunner: QueryRunner): Promise<any> {
-    this.logger.log(`Validating order: ${payload.orderId}`);
-    
-    const order = await queryRunner.manager.findOne(Order, {
-      where: { id: payload.orderId },
-      lock: { mode: 'pessimistic_read' },
-    });
-    
-    if (!order) {
-      throw new Error(`Order ${payload.orderId} not found`);
-    }
-    
-    if (order.status !== OrderStatus.PENDING) {
-      throw new Error(`Order ${payload.orderId} is not in pending status. Current status: ${order.status}`);
-    }
-
-    // Update order status to PROCESSING
-    order.status = OrderStatus.PROCESSING;
-    await queryRunner.manager.save(order);
-    
-    return { 
-      orderId: order.id, 
-      validated: true, 
-      originalStatus: OrderStatus.PENDING,
-      validatedAt: new Date(),
-    };
-  }
-
-  private async cancelOrder(payload: any, stepData: any, context: any, queryRunner: QueryRunner): Promise<void> {
-    this.logger.log(`Compensating: Cancelling order ${payload.orderId}`);
-    
-    try {
-      const order = await queryRunner.manager.findOne(Order, {
-        where: { id: payload.orderId },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (order) {
-        order.status = OrderStatus.CANCELLED;
-        await queryRunner.manager.save(order);
-        
-        // If order was created as part of this saga, remove it completely
-        if (stepData?.originalStatus === OrderStatus.PENDING) {
-          await this.orderService.rollbackOrderCreation(payload.orderId, queryRunner);
-        }
-      }
-    } catch (error) {
-      this.logger.error(`Failed to cancel order ${payload.orderId}: ${error.message}`);
-      throw error;
-    }
-  }
-
-  private async createPayment(payload: any, context: any, queryRunner: QueryRunner): Promise<any> {
-    this.logger.log(`Creating payment for order: ${payload.orderId}`);
-    
-    // Generate idempotency key for payment creation
-    const idempotencyKey = `payment_${payload.orderId}_${this.generateHash(JSON.stringify(payload))}`;
-    
-    const createPaymentMessage = {
-      orderId: payload.orderId,
-      amount: payload.amount,
-      currency: payload.currency,
-      method: payload.paymentMethod,
-      email: payload.email,
-      contact: payload.contact,
-      idempotencyKey,
-      sagaId: context.sagaId || payload.sagaId,
-    };
-
-    // Emit payment creation request
-    this.kafkaClient.emit('payment.create.requested', createPaymentMessage);
-    
-    return { 
-      orderId: payload.orderId, 
-      paymentRequestSent: true,
-      idempotencyKey,
-      requestedAt: new Date(),
-    };
-  }
-
-  private async cancelPayment(payload: any, stepData: any, context: any, queryRunner: QueryRunner): Promise<void> {
-    this.logger.log(`Compensating: Cancelling payment for order ${payload.orderId}`);
-    
-    try {
-      const cancelMessage = {
-        orderId: payload.orderId,
-        paymentId: stepData?.paymentId,
-        idempotencyKey: stepData?.idempotencyKey,
-        reason: 'saga_compensation',
-      };
-
-      this.kafkaClient.emit('payment.cancel.requested', cancelMessage);
-      
-      // Wait a bit for the cancellation to process
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (error) {
-      this.logger.error(`Failed to cancel payment for order ${payload.orderId}: ${error.message}`);
-      throw error;
-    }
-  }
-
-  private async processPayment(payload: any, context: any, queryRunner: QueryRunner): Promise<any> {
-    this.logger.log(`Processing payment for order: ${payload.orderId}`);
-    
-    const processMessage = {
-      orderId: payload.orderId,
-      paymentId: context.CREATE_PAYMENT?.paymentId,
-      idempotencyKey: `process_${payload.orderId}_${Date.now()}`,
-      sagaId: context.sagaId || payload.sagaId,
-    };
-    
-    this.kafkaClient.emit('payment.process.requested', processMessage);
-    
-    return { 
-      orderId: payload.orderId, 
-      processRequestSent: true,
-      processedAt: new Date(),
-    };
-  }
-
-  private async refundPayment(payload: any, stepData: any, context: any, queryRunner: QueryRunner): Promise<void> {
-    this.logger.log(`Compensating: Refunding payment for order ${payload.orderId}`);
-    
-    try {
-      const refundMessage = {
-        orderId: payload.orderId,
-        paymentId: stepData?.paymentId || context.CREATE_PAYMENT?.paymentId,
-        amount: payload.amount,
-        reason: 'saga_compensation',
-        idempotencyKey: `refund_${payload.orderId}_${Date.now()}`,
-      };
-
-      this.kafkaClient.emit('payment.refund.requested', refundMessage);
-      
-      // Wait for refund processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } catch (error) {
-      this.logger.error(`Failed to refund payment for order ${payload.orderId}: ${error.message}`);
-      throw error;
-    }
-  }
-
-  private async updateOrderStatus(payload: any, context: any, queryRunner: QueryRunner): Promise<any> {
-    this.logger.log(`Updating order status to PAID: ${payload.orderId}`);
-    
-    const order = await queryRunner.manager.findOne(Order, {
-      where: { id: payload.orderId },
-      lock: { mode: 'pessimistic_write' },
-    });
-
-    if (!order) {
-      throw new Error(`Order ${payload.orderId} not found`);
-    }
-
-    const previousStatus = order.status;
-    order.status = OrderStatus.PAID;
-    await queryRunner.manager.save(order);
-    
-    return { 
-      orderId: payload.orderId, 
-      newStatus: OrderStatus.PAID,
-      previousStatus,
-      updatedAt: new Date(),
-    };
-  }
-
-  private async revertOrderStatus(payload: any, stepData: any, context: any, queryRunner: QueryRunner): Promise<void> {
-    this.logger.log(`Compensating: Reverting order status for ${payload.orderId}`);
-    
-    try {
-      const order = await queryRunner.manager.findOne(Order, {
-        where: { id: payload.orderId },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (order && stepData?.previousStatus) {
-        order.status = stepData.previousStatus;
-        await queryRunner.manager.save(order);
-      }
-    } catch (error) {
-      this.logger.error(`Failed to revert order status for ${payload.orderId}: ${error.message}`);
-      throw error;
-    }
-  }
-
-  // Recovery and Cleanup Methods
-  private async resumeInterruptedSagas() {
-    this.logger.log('Resuming interrupted sagas...');
-    
-    try {
-      const interruptedSagas = await this.sagaRepository.find({
-        where: { status: SagaStatus.STARTED },
-        order: { created_at: 'ASC' },
-        take: 100, // Process in batches
-      });
-
-      for (const saga of interruptedSagas) {
-        this.logger.log(`Resuming saga ${saga.saga_id}`);
-        
-        // Add delay to prevent overwhelming the system
-        setTimeout(() => {
-          this.executeNextStep(saga.saga_id, saga.saga_type);
-        }, Math.random() * 5000); // Random delay up to 5 seconds
-      }
-    } catch (error) {
-      this.logger.error(`Error resuming interrupted sagas: ${error.message}`);
-    }
-  }
-
-  private startCleanupJob() {
-    // Clean up expired pending async steps every 5 minutes
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupExpiredAsyncSteps();
-    }, 5 * 60 * 1000);
-  }
-
-  private cleanupExpiredAsyncSteps() {
-    const now = new Date();
-    const expiredKeys: string[] = [];
-
-    for (const [key, pending] of this.pendingAsyncSteps.entries()) {
-      if (pending.expiresAt < now) {
-        expiredKeys.push(key);
-        clearTimeout(pending.timeout);
-      }
-    }
-
-    for (const key of expiredKeys) {
-      const pending = this.pendingAsyncSteps.get(key);
-      if (pending) {
-        this.logger.warn(`Cleaning up expired async step: ${pending.stepName} for saga ${pending.sagaId}`);
-        this.pendingAsyncSteps.delete(key);
-        
-        // Trigger timeout handling
-        this.handleStepTimeout(pending.sagaId, pending.sagaType, pending.stepName);
-      }
-    }
-  }
-
-  // Utility Methods
-  private async completeSaga(sagaId: string, queryRunner?: QueryRunner) {
-    const repository = queryRunner ? queryRunner.manager.getRepository(SagaTransaction) : this.sagaRepository;
-    
-    const saga = await repository.findOne({ where: { saga_id: sagaId } });
-    if (saga) {
-      saga.status = SagaStatus.COMPLETED;
-      saga.completed_at = new Date();
-      await repository.save(saga);
-      
-      // Update cache
-      await this.cacheManager.set(`saga:${sagaId}`, saga, 1800);
-      
-      this.logger.log(`Saga ${sagaId} completed successfully`);
-    }
-  }
-
-  private async updateSagaStatus(sagaId: string, status: SagaStatus) {
-    try {
-      const saga = await this.sagaRepository.findOne({ where: { saga_id: sagaId } });
-      if (saga) {
-        saga.status = status;
-        if (status === SagaStatus.COMPLETED || status === SagaStatus.FAILED || status === SagaStatus.COMPENSATED) {
-          saga.completed_at = new Date();
-        }
-        await this.sagaRepository.save(saga);
-        
-        // Update cache
-        await this.cacheManager.set(`saga:${sagaId}`, saga, 1800);
-      }
-    } catch (error) {
-      this.logger.error(`Failed to update saga ${sagaId} status to ${status}: ${error.message}`);
-    }
-  }
-
-  private async failSaga(sagaId: string) {
-    await this.updateSagaStatus(sagaId, SagaStatus.FAILED);
-    this.logger.log(`Saga ${sagaId} failed`);
-  }
-
-  private generateSagaId(payload: any): string {
-    // Create deterministic saga ID for idempotency
-    const hash = this.generateHash(JSON.stringify(payload));
-    return `saga_${Date.now()}_${hash}`;
-  }
-
-  private generateHash(data: string): string {
-    return crypto.createHash('md5').update(data).digest('hex').substring(0, 8);
-  }
-
-  // Public API Methods
-  async getSagaStatus(sagaId: string) {
-    try {
-      // Try cache first
-      let saga = await this.cacheManager.get<SagaTransaction>(`saga:${sagaId}`);
-      if (!saga) {
-        saga = await this.sagaRepository.findOne({ where: { saga_id: sagaId } });
-        if (saga) {
-          await this.cacheManager.set(`saga:${sagaId}`, saga, 1800);
-        }
-      }
-
-      const steps = await this.stepRepository.find({
-        where: { saga_id: sagaId },
-        order: { step_order: 'ASC' },
-      });
-      
-      return {
-        saga,
-        steps,
-        progress: saga ? Math.round((saga.current_step / saga.total_steps) * 100) : 0,
-        isComplete: saga?.status === SagaStatus.COMPLETED,
-        isFailed: saga?.status === SagaStatus.FAILED || saga?.status === SagaStatus.COMPENSATION_FAILED,
-        isCompensating: saga?.status === SagaStatus.COMPENSATING,
-        isCompensated: saga?.status === SagaStatus.COMPENSATED,
-      };
-    } catch (error) {
-      this.logger.error(`Error getting saga status for ${sagaId}: ${error.message}`);
-      throw error;
-    }
-  }
-
-  async retrySaga(sagaId: string): Promise<boolean> {
-    try {
-      const saga = await this.sagaRepository.findOne({ where: { saga_id: sagaId } });
-      
-      if (!saga || (saga.status !== SagaStatus.FAILED && saga.status !== SagaStatus.COMPENSATION_FAILED)) {
-        return false;
-      }
-
-      // Reset saga to restart from failed step
-      const failedStep = await this.stepRepository.findOne({
-        where: { saga_id: sagaId, status: SagaStepStatus.FAILED },
-        order: { step_order: 'ASC' },
-      });
-
-      if (failedStep) {
-        saga.status = SagaStatus.STARTED;
-        saga.current_step = failedStep.step_order;
-        saga.retry_count = (saga.retry_count || 0) + 1;
-        
-        if (saga.retry_count > saga.max_retries) {
-          this.logger.warn(`Saga ${sagaId} has exceeded max retries`);
-          return false;
-        }
-        
-        await this.sagaRepository.save(saga);
-
-        failedStep.status = SagaStepStatus.PENDING;
-        failedStep.retry_count = 0;
-        failedStep.error_message = null;
-        await this.stepRepository.save(failedStep);
-
-        // Update cache
-        await this.cacheManager.set(`saga:${sagaId}`, saga, 1800);
-
-        // Resume execution with delay
-        setTimeout(() => {
-          this.executeNextStep(sagaId, saga.saga_type);
-        }, 1000);
-        
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      this.logger.error(`Error retrying saga ${sagaId}: ${error.message}`);
-      return false;
-    }
-  }
-
-  // Graceful shutdown
-  async onModuleDestroy() {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-
-    // Clear all pending timeouts
-    for (const [key, pending] of this.pendingAsyncSteps.entries()) {
-      clearTimeout(pending.timeout);
-    }
-    this.pendingAsyncSteps.clear();
-
-    // Disconnect Kafka
-    try {
-      await this.kafkaClient.close();
-    } catch (error) {
-      this.logger.error(`Error closing Kafka client: ${error.message}`);
-    }
-  }
+interface OrderResponse {
+  success: boolean;
+  order: {
+    id: string;
+    amount: number;
+    currency: string;
+  };
 }
 
-// /home/satya/myproject/order-service/src/modules/saga/circuit-breaker.ts
-export interface CircuitBreakerOptions {
-  failureThreshold: number;
-  recoveryTimeout: number;
-  timeout: number;
-}
-
-export enum CircuitBreakerState {
-  CLOSED = 'closed',
-  OPEN = 'open',
-  HALF_OPEN = 'half_open',
-}
-
-export class CircuitBreaker {
-  private state: CircuitBreakerState = CircuitBreakerState.CLOSED;
-  private failureCount = 0;
-  private lastFailureTime?: Date;
-  private nextAttempt?: Date;
-
-  constructor(private options: CircuitBreakerOptions) {}
-
-  async execute<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.state === CircuitBreakerState.OPEN) {
-      if (this.shouldAttemptReset()) {
-        this.state = CircuitBreakerState.HALF_OPEN;
-      } else {
-        throw new Error('Circuit breaker is OPEN');
-      }
-    }
-
-    try {
-      const result = await Promise.race([
-        operation(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Operation timeout')), this.options.timeout)
-        ),
-      ]);
-
-      this.onSuccess();
-      return result;
-    } catch (error) {
-      this.onFailure();
-      throw error;
-    }
-  }
-
-  private onSuccess() {
-    this.failureCount = 0;
-    this.state = CircuitBreakerState.CLOSED;
-  }
-
-  private onFailure() {
-    this.failureCount++;
-    this.lastFailureTime = new Date();
-
-    if (this.failureCount >= this.options.failureThreshold) {
-      this.state = CircuitBreakerState.OPEN;
-      this.nextAttempt = new Date(Date.now() + this.options.recoveryTimeout);
-    }
-  }
-
-  private shouldAttemptReset(): boolean {
-    return this.nextAttempt && new Date() >= this.nextAttempt;
-  }
-
-  getState(): CircuitBreakerState {
-    return this.state;
-  }
-}
-
-// /home/satya/myproject/order-service/src/modules/saga/rate-limiter.ts
-export interface RateLimiterOptions {
-  maxRequests: number;
-  windowMs: number;
-}
-
-export class RateLimiter {
-  private requests: number[] = [];
-
-  constructor(private options: RateLimiterOptions) {}
-
-  allowRequest(): boolean {
-    const now = Date.now();
-    const windowStart = now - this.options.windowMs;
-
-    // Remove old requests outside the window
-    this.requests = this.requests.filter(time => time > windowStart);
-
-    if (this.requests.length >= this.options.maxRequests) {
-      return false;
-    }
-
-    this.requests.push(now);
-    return true;
-  }
-
-  getRemainingRequests(): number {
-    const now = Date.now();
-    const windowStart = now - this.options.windowMs;
-    const currentRequests = this.requests.filter(time => time > windowStart).length;
-    return Math.max(0, this.options.maxRequests - currentRequests);
-  }
-}
-
-// /home/satya/myproject/payment-service/src/modules/payment/payment.service.ts
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Payment } from './entities/payment.entity';
-import { ClientKafka, EventPattern } from '@nestjs/microservices';
-import { Inject } from '@nestjs/common';
-import * as crypto from 'crypto';
-import Razorpay from 'razorpay';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { Cache } from 'cache-manager';
-
-@Injectable()
-export class PaymentService implements OnModuleInit {
-  private readonly logger = new Logger(PaymentService.name);
-  private readonly razorpay: Razorpay;
-  private readonly processedWebhooks = new Set<string>();
-
-  constructor(
-    @InjectRepository(Payment)
-    private readonly paymentRepository: Repository<Payment>,
-    @Inject('KAFKA_CLIENT') private readonly kafkaClient: ClientKafka,
-    @Inject('CACHE_MANAGER') private readonly cacheManager: Cache,
-  ) {
-    this.razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
-  }
-
-  async onModuleInit() {
-    const topics = [
-      'payment.create.requested',
-      'payment.process.requested',
-      'payment.cancel.requested',
-      'payment.refund.requested',
-    ];
-
-    for (const topic of topics) {
-      await this.kafkaClient.subscribeToResponseOf(topic);
-    }
-    
-    await this.kafkaClient.connect();
-  }
-
-  verifySignature(payload: any, signature: string): boolean {
-    const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
-      .update(JSON.stringify(payload))
-      .digest('hex');
-    return signature === expectedSignature;
-  }
-
-  async processWebhook(webhookData: any, signature: string): Promise<void> {
-    // Verify signature first
-    if (!this.verifySignature(webhookData, signature)) {
-      throw new Error('Invalid webhook signature');
-    }
-
-    const event = webhookData.event;
-    const paymentData = webhookData.payload.payment.entity;
-    const paymentId = paymentData.id;
-    
-    // Prevent duplicate processing
-    const webhookId = `${event}_${paymentId}_${paymentData.created_at}`;
-    if (this.processedWebhooks.has(webhookId)) {
-      this.logger.log(`Webhook ${webhookId} already processed`);
-      return;
-    }
-
-    try {
-      const existingPayment = await this.paymentRepository.findOne({ 
-        where: { payment_id: paymentId } 
-      });
-
-      const orderId = parseInt(paymentData.notes?.internalOrderId, 10);
-      if (!orderId) {
-        this.logger.warn('No internal order ID found in payment notes');
-        return;
-      }
-
-      if (event === 'payment.captured') {
-        await this.handlePaymentCaptured(paymentData, orderId, existingPayment);
-      } else if (event === 'payment.failed') {
-        await this.handlePaymentFailed(paymentData, orderId, existingPayment);
-      } else if (event === 'payment.created') {
-        await this.handlePaymentCreated(paymentData, orderId, existingPayment);
-      }
-
-      // Mark webhook as processed
-      this.processedWebhooks.add(webhookId);
-      
-      // Clean up old webhook IDs (keep only last 1000)
-      if (this.processedWebhooks.size > 1000) {
-        const webhookArray = Array.from(this.processedWebhooks);
-        const toDelete = webhookArray.slice(0, webhookArray.length - 1000);
-        toDelete.forEach(id => this.processedWebhooks.delete(id));
-      }
-    } catch (error) {
-      this.logger.error(`Error processing webhook: ${error.message}`);
-      throw error;
-    }
-  }
-
-  private async handlePaymentCreated(paymentData: any, orderId: number, existingPayment?: Payment) {
-    if (existingPayment) {
-      this.logger.log(`Payment ${paymentData.id} already exists`);
-      return;
-    }
-
-    const payment = this.paymentRepository.create({
-      payment_id: paymentData.id,
-      order_id: paymentData.order_id,
-      amount: paymentData.amount / 100,
-      currency: paymentData.currency,
-      status: paymentData.status,
-      method: paymentData.method,
-      captured: false,
-      email: paymentData.email,
-      contact: paymentData.contact,
-      payment_created_at: paymentData.created_at,
-    });
-
-    await this.paymentRepository.save(payment);
-    
-    // Emit event for saga
-    this.kafkaClient.emit('payment.created', { 
-      orderId, 
-      paymentId: paymentData.id,
-      status: 'CREATED',
-      sagaId: paymentData.notes?.sagaId,
-    });
-    
-    this.logger.log(`Payment ${paymentData.id} created for order ${orderId}`);
-  }
-
-  private async handlePaymentCaptured(paymentData: any, orderId: number, existingPayment?: Payment) {
-    let payment = existingPayment;
-    
-    if (!payment) {
-      payment = this.paymentRepository.create({
-        payment_id: paymentData.id,
-        order_id: paymentData.order_id,
-        amount: paymentData.amount / 100,
-        currency: paymentData.currency,
-        status: paymentData.status,
-        method: paymentData.method,
-        captured: true,
-        email: paymentData.email,
-        contact: paymentData.contact,
-        payment_created_at: paymentData.created_at,
-      });
-    } else {
-      payment.status = paymentData.status;
-      payment.captured = true;
-    }
-
-    await this.paymentRepository.save(payment);
-    
-    // Emit event for saga
-    this.kafkaClient.emit('payment.captured', { 
-      orderId, 
-      paymentId: paymentData.id,
-      status: 'CAPTURED',
-      sagaId: paymentData.notes?.sagaId,
-    });
-    
-    this.logger.log(`Payment ${paymentData.id} captured for order ${orderId}`);
-  }
-
-  private async handlePaymentFailed(paymentData: any, orderId: number, existingPayment?: Payment) {
-    let payment = existingPayment;
-    
-    if (!payment) {
-      payment = this.paymentRepository.create({
-        payment_id: paymentData.id,
-        order_id: paymentData.order_id,
-        amount: paymentData.amount / 100,
-        currency: paymentData.currency,
-        status: paymentData.status,
-        method: paymentData.method,
-        captured: false,
-        email: paymentData.email,
-        contact: paymentData.contact,
-        payment_created_at: paymentData.created_at,
-        error_code: paymentData.error_code,
-        error_description: paymentData.error_description,
-        error_source: paymentData.error_source,
-        error_step: paymentData.error_step,
-        error_reason: paymentData.error_reason,
-      });
-    } else {
-      payment.status = paymentData.status;
-      payment.error_code = paymentData.error_code;
-      payment.error_description = paymentData.error_description;
-      payment.error_source = paymentData.error_source;
-      payment.error_step = paymentData.error_step;
-      payment.error_reason = paymentData.error_reason;
-    }
-
-    await this.paymentRepository.save(payment);
-    
-    // Emit event for saga
-    this.kafkaClient.emit('payment.failed', { 
-      orderId, 
-      paymentId: paymentData.id,
-      error: paymentData.error_description,
-      sagaId: paymentData.notes?.sagaId,
-    });
-    
-    this.logger.log(`Payment failed for order ${orderId}: ${paymentData.error_description}`);
-  }
-
-  @EventPattern('payment.create.requested')
-  async createPayment(createPaymentDto: CreatePaymentDto) {
-    try {
-      // Check for existing payment with same idempotency key
-      if (createPaymentDto.idempotencyKey) {
-        const existingPayment = await this.paymentRepository.findOne({
-          where: { idempotency_key: createPaymentDto.idempotencyKey },
-        });
-        
-        if (existingPayment) {
-          this.logger.log(`Payment already exists for idempotency key: ${createPaymentDto.idempotencyKey}`);
-          this.kafkaClient.emit('payment.created', { 
-            orderId: createPaymentDto.orderId, 
-            paymentId: existingPayment.payment_id,
-            status: 'CREATED',
-            sagaId: createPaymentDto.sagaId,
-          });
-          return { paymentId: existingPayment.payment_id, orderId: createPaymentDto.orderId };
-        }
-      }
-
-      const paymentId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const payment = this.paymentRepository.create({
-        payment_id: paymentId,
-        order_id: createPaymentDto.orderId.toString(),
-        amount: createPaymentDto.amount,
-        currency: createPaymentDto.currency,
-        status: 'created',
-        method: createPaymentDto.paymentMethod,
-        email: createPaymentDto.email,
-        contact: createPaymentDto.contact,
-        payment_created_at: Date.now(),
-        idempotency_key: createPaymentDto.idempotencyKey,
-      });
-      
-      await this.paymentRepository.save(payment);
-      
-      // Cache payment for quick access
-      await this.cacheManager.set(`payment:${paymentId}`, payment, 300);
-      
-      this.kafkaClient.emit('payment.created', { 
-        orderId: createPaymentDto.orderId, 
-        paymentId,
-        status: 'CREATED',
-        sagaId: createPaymentDto.sagaId,
-      });
-      
-      this.logger.log(`Payment ${paymentId} created for order ${createPaymentDto.orderId}`);
-      return { paymentId, orderId: createPaymentDto.orderId };
-    } catch (error) {
-      this.logger.error(`Error creating payment: ${error.message}`);
-      
-      this.kafkaClient.emit('payment.failed', { 
-        orderId: createPaymentDto.orderId,
-        error: error.message,
-        sagaId: createPaymentDto.sagaId,
-      });
-      
-      throw error;
-    }
-  }
-
-  @EventPattern('payment.process.requested')
-  async processPayment(data: { orderId: number; paymentId: string; idempotencyKey: string; sagaId: string }) {
-    try {
-      const payment = await this.paymentRepository.findOne({ 
-        where: { payment_id: data.paymentId } 
-      });
-      
-      if (!payment) {
-        throw new Error(`Payment ${data.paymentId} not found`);
-      }
-
-      if (payment.status === 'captured') {
-        this.logger.log(`Payment ${data.paymentId} already captured`);
-        this.kafkaClient.emit('payment.captured', { 
-          orderId: data.orderId, 
-          paymentId: data.paymentId,
-          status: 'CAPTURED',
-          sagaId: data.sagaId,
-        });
-        return;
-      }
-
-      // Simulate payment processing (replace with actual gateway call)
-      const success = Math.random() > 0.1; // 90% success rate for demo
-      
-      if (success) {
-        payment.status = 'captured';
-        payment.captured = true;
-        await this.paymentRepository.save(payment);
-        
-        this.kafkaClient.emit('payment.captured', { 
-          orderId: data.orderId, 
-          paymentId: data.paymentId,
-          status: 'CAPTURED',
-          sagaId: data.sagaId,
-        });
-        
-        this.logger.log(`Payment ${data.paymentId} processed successfully`);
-      } else {
-        payment.status = 'failed';
-        payment.error_description = 'Payment processing failed';
-        await this.paymentRepository.save(payment);
-        
-        this.kafkaClient.emit('payment.failed', { 
-          orderId: data.orderId, 
-          paymentId: data.paymentId,
-          error: 'Payment processing failed',
-          sagaId: data.sagaId,
-        });
-        
-        this.logger.log(`Payment ${data.paymentId} processing failed`);
-      }
-    } catch (error) {
-      this.logger.error(`Error processing payment ${data.paymentId}: ${error.message}`);
-      
-      this.kafkaClient.emit('payment.failed', { 
-        orderId: data.orderId, 
-        paymentId: data.paymentId,
-        error: error.message,
-        sagaId: data.sagaId,
-      });
-    }
-  }
-
-  @EventPattern('payment.cancel.requested')
-  async cancelPayment(data: { orderId: number; paymentId?: string; idempotencyKey?: string }) {
-    try {
-      let payment: Payment;
-      
-      if (data.paymentId) {
-        payment = await this.paymentRepository.findOne({ 
-          where: { payment_id: data.paymentId } 
-        });
-      } else if (data.idempotencyKey) {
-        payment = await this.paymentRepository.findOne({ 
-          where: { idempotency_key: data.idempotencyKey } 
-        });
-      } else {
-        payment = await this.paymentRepository.findOne({ 
-          where: { order_id: data.orderId.toString() } 
-        });
-      }
-      
-      if (payment) {
-        payment.status = 'cancelled';
-        await this.paymentRepository.save(payment);
-        
-        // Remove from cache
-        await this.cacheManager.del(`payment:${payment.payment_id}`);
-        
-        this.logger.log(`Payment for order ${data.orderId} cancelled`);
-      } else {
-        this.logger.warn(`No payment found to cancel for order ${data.orderId}`);
-      }
-    } catch (error) {
-      this.logger.error(`Error cancelling payment for order ${data.orderId}: ${error.message}`);
-    }
-  }
-
-  @EventPattern('payment.refund.requested')
-  async refundPayment(data: { 
-    orderId: number; 
-    paymentId: string; 
-    amount: number; 
-    reason: string;
-    idempotencyKey: string;
-  }) {
-    try {
-      const payment = await this.paymentRepository.findOne({ 
-        where: { payment_id: data.paymentId } 
-      });
-      
-      if (!payment) {
-        this.logger.error(`Payment ${data.paymentId} not found for refund`);
-        return;
-      }
-
-      if (payment.status !== 'captured') {
-        this.logger.warn(`Payment ${data.paymentId} is not captured, cannot refund`);
-        return;
-      }
-
-      // Simulate refund processing (replace with actual gateway call)
-      const refundSuccess = Math.random() > 0.05; // 95% success rate for demo
-      
-      if (refundSuccess) {
-        payment.status = 'refunded';
-        payment.refunded_amount = data.amount;
-        payment.refund_reason = data.reason;
-        await this.paymentRepository.save(payment);
-        
-        this.logger.log(`Payment ${data.paymentId} refunded successfully. Amount: ${data.amount}`);
-      } else {
-        this.logger.error(`Refund failed for payment ${data.paymentId}`);
-      }
-    } catch (error) {
-      this.logger.error(`Error refunding payment ${data.paymentId}: ${error.message}`);
-    }
-  }
-
-  async getPayment(paymentId: string): Promise<Payment> {
-    // Try cache first
-    const cachedPayment = await this.cacheManager.get<Payment>(`payment:${paymentId}`);
-    if (cachedPayment) {
-      return cachedPayment;
-    }
-
-    const payment = await this.paymentRepository.findOne({ 
-      where: { payment_id: paymentId } 
-    });
-    
-    if (!payment) {
-      throw new Error(`Payment ${paymentId} not found`);
-    }
-
-    // Cache for future requests
-    await this.cacheManager.set(`payment:${paymentId}`, payment, 300);
-    return payment;
-  }
-}
-
-// /home/satya/myproject/payment-service/src/modules/payment/entities/payment.entity.ts
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  Index,
-} from 'typeorm';
-
-@Entity('payments')
-@Index(['order_id'])
-@Index(['payment_id'])
-@Index(['status'])
-@Index(['idempotency_key'])
-export class Payment {
-  @PrimaryGeneratedColumn()
+interface User {
   id: number;
-
-  @Column({ type: 'varchar', length: 50, unique: true })
-  payment_id: string;
-
-  @Column({ type: 'varchar', length: 50 })
-  order_id: string;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
-  amount: number;
-
-  @Column({ type: 'varchar', length: 10 })
-  currency: string;
-
-  @Column({ type: 'varchar', length: 20 })
-  status: string;
-
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  method: string;
-
-  @Column({ type: 'boolean', default: false })
-  captured: boolean;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  email: string;
-
-  @Column({ type: 'varchar', length: 20, nullable: true })
-  contact: string;
-
-  @Column({ type: 'bigint', nullable: true })
-  payment_created_at: number;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  error_code: string;
-
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  error_description: string;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  error_source: string;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  error_step: string;
-
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  error_reason: string;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  refunded_amount: number;
-
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  refund_reason: string;
-
-  @Column({ type: 'varchar', length: 100, nullable: true, unique: true })
-  idempotency_key: string;
-
-  @CreateDateColumn({ type: 'timestamp' })
-  created_at: Date;
-
-  @UpdateDateColumn({ type: 'timestamp' })
-  updated_at: Date;
+  emailId: string;
 }
 
-// /home/satya/myproject/order-service/src/modules/order/dto/create-order.dto.ts
-import { IsNotEmpty, IsNumber, IsString, IsOptional, IsEmail, IsIn } from 'class-validator';
+export default function PaymentPage() {
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [error, setError] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
 
-export class CreateOrderDto {
-  @IsNotEmpty()
-  @IsNumber()
-  user_id: number;
+  // Get access token from localStorage
+  const getAccessToken = (): string | null => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('accessToken');
+    }
+    return null;
+  };
 
-  @IsOptional()
-  @IsString()
-  seller_id?: string;
+  // Get user data from localStorage
+  const getUserData = (): User | null => {
+    if (typeof window !== 'undefined') {
+      const userData = localStorage.getItem('user');
+      return userData ? JSON.parse(userData) : null;
+    }
+    return null;
+  };
 
-  @IsOptional()
-  @IsString()
-  variant_id?: string;
+  // Create axios instance with auth interceptor
+  const createAxiosInstance = () => {
+    const instance = axios.create();
+    
+    instance.interceptors.request.use((config) => {
+      const token = getAccessToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
 
-  @IsNotEmpty()
-  @IsString()
-  total_amount: string;
+    return instance;
+  };
 
-  @IsOptional()
-  @IsString()
-  currency?: string = 'INR';
+  // Format price in INR
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(price);
+  };
 
-  @IsNotEmpty()
-  @IsIn(['razorpay', 'cashfree'])
-  paymentGateway: string;
+  // Load checkout data and user data from local storage
+  useEffect(() => {
+    const data = localStorage.getItem('checkoutData');
+    const userData = getUserData();
+    
+    if (data) {
+      try {
+        const parsedData: CheckoutData = JSON.parse(data);
+        setCheckoutData(parsedData);
+      } catch (err) {
+        console.error('Failed to parse checkout data:', err);
+        setError('Failed to load cart details. Please return to cart.');
+      }
+    } else {
+      setError('No cart data found. Please return to cart.');
+    }
 
-  @IsOptional()
-  @IsString()
-  paymentMethod?: string = 'card';
+    if (userData) {
+      setUser(userData);
+    } else {
+      setError('User not authenticated. Please login.');
+    }
+  }, []);
 
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-  @IsOptional()
-  @IsString()
-  contact?: string;
+    if (!checkoutData) {
+      setError('No cart data available. Please return to cart.');
+      setLoading(false);
+      return;
+    }
 
-  @IsOptional()
-  @IsString()
-  idempotencyKey?: string;
-}
+    if (!user) {
+      setError('User not authenticated. Please login.');
+      setLoading(false);
+      return;
+    }
 
-// /home/satya/myproject/payment-service/src/modules/payment/dto/create-payment.dto.ts
-import { IsNotEmpty, IsNumber, IsString, IsOptional, IsEmail } from 'class-validator';
+    const { cartItems, total } = checkoutData;
+    const accessToken = getAccessToken();
 
-export class CreatePaymentDto {
-  @IsNotEmpty()
-  @IsNumber()
-  orderId: number;
+    if (!accessToken) {
+      setError('Authentication token not found. Please login again.');
+      setLoading(false);
+      return;
+    }
 
-  @IsNotEmpty()
-  @IsNumber()
-  amount: number;
+    if (!total || total <= 0) {
+      setError('Invalid total amount.');
+      setLoading(false);
+      return;
+    }
 
-  @IsNotEmpty()
-  @IsString()
-  currency: string;
+    let orderData: OrderResponse['order'] | null = null;
+    const axiosInstance = createAxiosInstance();
 
-  @IsNotEmpty()
-  @IsString()
-  paymentMethod: string;
-
-  @IsOptional()
-  @IsEmail()
-  email?: string;
-
-  @IsOptional()
-  @IsString()
-  contact?: string;
-
-  @IsOptional()
-  @IsString()
-  idempotencyKey?: string;
-
-  @IsOptional()
-  @IsString()
-  sagaId?: string;
-}
-
-// /home/satya/myproject/order-service/src/modules/order/order.controller.ts
-import { Controller, Post, Body, Get, Param, HttpException, HttpStatus } from '@nestjs/common';
-import { OrderService } from './order.service';
-import { SagaOrchestrator } from '../saga/saga.orchestrator';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { Logger } from '@nestjs/common';
-
-@Controller('orders')
-export class OrderController {
-  private readonly logger = new Logger(OrderController.name);
-
-  constructor(
-    private readonly orderService: OrderService,
-    private readonly sagaOrchestrator: SagaOrchestrator,
-  ) {}
-
-  @Post()
-  async createOrder(@Body() createOrderDto: CreateOrderDto) {
     try {
-      // Generate idempotency key if not provided
-      if (!createOrderDto.idempotencyKey) {
-        createOrderDto.idempotencyKey = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Reserve inventory for all cart items
+      for (const item of cartItems) {
+        await axiosInstance.post(
+          'http://localhost:2000/api/product/reserve-stock',
+          {
+            productId: item.productId,
+            quantity: item.quantity,
+          },
+          { timeout: 5000 }
+        );
       }
 
-      // Create order first
-      const order = await this.orderService.createOrder(createOrderDto);
+      // Create order with required fields
+      // Generate a product_id from cart items (you might want to adjust this logic)
+      const productIds = cartItems.map(item => item.productId).join(',');
       
-      // Start payment saga
-      const sagaId = await this.sagaOrchestrator.executeSaga('PAYMENT_SAGA', {
-        orderId: order.id,
-        amount: parseFloat(createOrderDto.total_amount),
-        currency: createOrderDto.currency,
-        paymentMethod: createOrderDto.paymentMethod || 'card',
-        email: createOrderDto.email,
-        contact: createOrderDto.contact,
-        paymentGateway: createOrderDto.paymentGateway,
-        sagaId: sagaId, // Will be set by saga orchestrator
+      const { data }: { data: OrderResponse } = await axiosInstance.post(
+        `http://localhost:2004/api/payment/order`,
+        { 
+          amount: total, // Send original amount, not in paise
+          currency: 'INR',
+          user_id: user.id, // Add required user_id
+          product_id: productIds // Add required product_id (composite of all products)
+        },
+        { timeout: 10000 }
+      );
+
+      if (!data.success || !data.order) {
+        throw new Error('Failed to create order');
+      }
+
+      orderData = data.order;
+
+      // Create form and submit to Razorpay
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'https://api.razorpay.com/v1/checkout/embedded';
+
+      // Add form fields
+      const fields = {
+        key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_StrkvgR0IMUtoF',
+        amount: data.order.amount.toString(),
+        currency: data.order.currency,
+        order_id: data.order.id,
+        name: 'Delente Technologies Pvt. Ltd.',
+        description: 'Payment for Cart Items',
+        prefill_name: user.emailId.split('@')[0] || 'Customer', // Use user data
+        prefill_email: user.emailId, // Use user email
+        notes_address: 'M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002',
+        theme_color: '#1E40AF',
+        callback_url: `http://localhost:2004/api/payment/callback`, // Fixed port to match your API
+        cancel_url: `${window.location.origin}/payment/cancel`,
+      };
+
+      Object.entries(fields).forEach(([key, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
       });
 
-      return { 
-        orderId: order.id, 
-        sagaId, 
-        gatewayOrderId: order.gateway_order_id,
-        status: 'created',
-        message: 'Order created and payment processing started'
-      };
-    } catch (error) {
-      this.logger.error(`Error creating order: ${error.message}`);
-      throw new HttpException(
-        {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: 'Failed to create order',
-          message: error.message,
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      document.body.appendChild(form);
+      form.submit();
+
+      // Clear local storage after successful payment initiation
+      localStorage.removeItem('checkoutData');
+    } catch (err: any) {
+      // Release inventory for all cart items on error
+      try {
+        for (const item of cartItems) {
+          await axiosInstance.post(
+            'http://localhost:2000/api/product/release-stock',
+            {
+              productId: item.productId,
+              quantity: item.quantity,
+            },
+            { timeout: 5000 }
+          );
+        }
+      } catch (releaseErr) {
+        console.error('Failed to release inventory:', releaseErr);
+      }
+
+      // Log payment failure if order was created
+      if (orderData) {
+        try {
+          await axiosInstance.post('http://localhost:2004/api/payment/failure', {
+            id: orderData.id,
+            paymentId: null,
+            errorCode: err.response?.status?.toString() || 'UNKNOWN_ERROR',
+            errorDescription: err.response?.data?.message || err.message || 'Payment initialization failed',
+            errorReason: 'ORDER_CREATION_FAILED',
+            type: 'frontend_error',
+            userId: user.id,
+          });
+        } catch (logErr) {
+          console.error('Failed to log payment failure:', logErr);
+        }
+      }
+
+      // Handle authentication errors
+      if (err.response?.status === 401) {
+        setError('Authentication failed. Please login again.');
+        // Optionally redirect to login page
+        // window.location.href = '/login';
+      } else {
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            'Failed to process payment or reserve inventory'
+        );
+      }
+      setLoading(false);
     }
+  };
+
+  if (!checkoutData || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
+          <h1 className="text-2xl font-bold mb-6">Error</h1>
+          <p className="text-red-500 mb-4">{error || 'Loading...'}</p>
+          <div className="space-y-2">
+            <Button asChild className="w-full">
+              <Link href="/cart">Return to Cart</Link>
+            </Button>
+            {!user && (
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/login">Login</Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  @Get(':id')
-  async getOrder(@Param('id') id: string) {
-    try {
-      const order = await this.orderService.getOrder(parseInt(id));
-      return order;
-    } catch (error) {
-      this.logger.error(`Error getting order ${id}: ${error.message}`);
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: 'Order not found',
-          message: error.message,
-        },
-        HttpStatus.NOT_FOUND,
-      );
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl">
+        <h1 className="text-2xl font-bold mb-6 text-center">Delente Technologies Payment</h1>
+
+        {/* User Info */}
+        <div className="mb-4 text-sm text-gray-600">
+          <p>Logged in as: {user.emailId}</p>
+        </div>
+
+        {/* Order Summary */}
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+          <div className="space-y-4">
+            {checkoutData.cartItems.map((item) => (
+              <div
+                key={`${item.productId}-${item.size}-${item.color}`}
+                className="flex justify-between text-sm"
+              >
+                <span>
+                  {item.name} (Size: {item.size}, Color: {item.color}, Qty: {item.quantity})
+                </span>
+                <span>{formatPrice(item.price * item.quantity)}</span>
+              </div>
+            ))}
+            <Separator className="my-4" />
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>{formatPrice(checkoutData.subtotal)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Shipping</span>
+                <span>{formatPrice(checkoutData.shipping)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tax</span>
+                <span>{formatPrice(checkoutData.tax)}</span>
+              </div>
+              <Separator className="my-2" />
+              <div className="flex justify-between font-semibold">
+                <span>Total</span>
+                <span>{formatPrice(checkoutData.total)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300 transition disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                Processing...
+              </span>
+            ) : (
+              'Pay Now'
+            )}
+          </button>
+        </form>
+        <p className="mt-4 text-sm text-gray-600 text-center">
+          Delente Technologies Pvt. Ltd.
+          <br />
+          M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002
+        </p>
+      </div>
+    </div>
+  );
+}
+__
+// /home/satya/myproject/frontend/app/payment/success/page.tsx
+'use client';
+
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+
+export default function PaymentSuccessPage() {
+  const searchParams = useSearchParams();
+  const paymentId = searchParams.get('payment_id');
+  const orderId = searchParams.get('order_id');
+  const userId = searchParams.get('user_id');
+  const amount = searchParams.get('amount');
+  
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Clean up any Razorpay related localStorage items
+    const keysToRemove = [
+      'prefill_data_v1',
+      'rzp_device_id',
+      'truecaller_user_metric',
+      'userConsent',
+      'checkoutData', // Also clear checkout data since payment is successful
+    ];
+    
+    keysToRemove.forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        console.error(`Failed to remove ${key} from localStorage:`, error);
+      }
+    });
+
+    // Optional: Send analytics or confirmation to your backend
+    if (paymentId && orderId) {
+      // You can add analytics tracking here
+      console.log('Payment successful:', { paymentId, orderId, userId });
+      
+      // Optional: Call your backend to confirm the payment was processed
+      // confirmPaymentSuccess(paymentId, orderId);
     }
+
+    setIsLoading(false);
+  }, [paymentId, orderId, userId]);
+
+  // Optional function to confirm payment with backend
+  // const confirmPaymentSuccess = async (paymentId: string, orderId: string) => {
+  //   try {
+  //     await fetch('/api/payment/confirm', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ paymentId, orderId })
+  //     });
+  //   } catch (error) {
+  //     console.error('Failed to confirm payment:', error);
+  //   }
+  // };
+
+  const formatPaymentId = (id: string) => {
+    // Format payment ID for better readability (e.g., pay_1234567890 -> pay_****7890)
+    if (id.length > 8) {
+      return id.substring(0, 4) + '****' + id.substring(id.length - 4);
+    }
+    return id;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Processing payment confirmation...</p>
+        </div>
+      </div>
+    );
   }
 
-  @Get('saga/:sagaId/status')
-  async getSagaStatus(@Param('sagaId') sagaId: string) {
-    try {
-      return await this.sagaOrchestrator.getSagaStatus(sagaId);
-    } catch (error) {
-      this.logger.error(`Error getting saga status ${sagaId}: ${error.message}`);
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: 'Saga not found',
-          message: error.message,
-        },
-        HttpStatus.NOT_FOUND,
-      );
-    }
+  // Show error if no payment details are found
+  if (!paymentId && !orderId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
+          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-red-600 mb-2">Invalid Access</h1>
+          <p className="text-gray-600 mb-6">No payment information found.</p>
+          <Link
+            href="/"
+            className="block w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition"
+          >
+            Go to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
   }
 
-  @Post('saga/:sagaId/retry')
-  async retrySaga(@Param('sagaId') sagaId: string) {
-    try {
-      const success = await this.sagaOrchestrator.retrySaga(sagaId);
-      return { 
-        success, 
-        message: success ? 'Saga retry initiated' : 'Saga cannot be retried' 
-      };
-    } catch (error) {
-      this.logger.error(`Error retrying saga ${sagaId}: ${error.message}`);
-      throw new HttpException(
-        {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: 'Failed to retry saga',
-          message: error.message,
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
+        <div className="mb-6">
+          {/* Success Animation */}
+          <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4 animate-pulse">
+            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-green-600 mb-2">Payment Successful!</h1>
+          <p className="text-gray-600">Your payment has been processed successfully.</p>
+          <p className="text-sm text-gray-500 mt-2">You will receive a confirmation email shortly.</p>
+        </div>
+
+        {/* Transaction Details */}
+        <div className="bg-gray-50 p-4 rounded-lg mb-6 text-left">
+          <h2 className="text-lg font-semibold mb-3 text-center">Transaction Details</h2>
+          
+          {paymentId && (
+            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+              <span className="text-sm font-medium text-gray-600">Payment ID:</span>
+              <span className="text-sm text-gray-800 font-mono">{formatPaymentId(paymentId)}</span>
+            </div>
+          )}
+          
+          {orderId && (
+            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+              <span className="text-sm font-medium text-gray-600">Order ID:</span>
+              <span className="text-sm text-gray-800 font-mono">{orderId}</span>
+            </div>
+          )}
+          
+          {amount && (
+            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+              <span className="text-sm font-medium text-gray-600">Amount:</span>
+              <span className="text-sm text-gray-800 font-semibold">₹{amount}</span>
+            </div>
+          )}
+          
+          <div className="flex justify-between items-center py-2">
+            <span className="text-sm font-medium text-gray-600">Status:</span>
+            <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full font-semibold">
+              Completed
+            </span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <Link
+            href="/orders"
+            className="block w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition font-semibold"
+          >
+            View Order Details
+          </Link>
+          
+          <Link
+            href="/"
+            className="block w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-md hover:bg-gray-300 transition font-semibold"
+          >
+            Continue Shopping
+          </Link>
+          
+          <Link
+            href="/payment"
+            className="block w-full border border-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-50 transition text-sm"
+          >
+            Make Another Payment
+          </Link>
+        </div>
+
+        {/* Additional Information */}
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <p className="text-sm text-blue-700 font-medium mb-1">What happens next?</p>
+          <ul className="text-xs text-blue-600 text-left space-y-1">
+            <li>• Order confirmation email sent</li>
+            <li>• Item(s) will be processed for shipping</li>
+            <li>• Track your order in "My Orders"</li>
+          </ul>
+        </div>
+
+        {/* Company Info */}
+        <p className="mt-6 text-xs text-gray-500">
+          Delente Technologies Pvt. Ltd.<br />
+          M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002<br />
+          <span className="text-gray-400">Transaction processed securely</span>
+        </p>
+      </div>
+    </div>
+  );
 }
 
-// Database Migration Script
-// /home/satya/myproject/order-service/migrations/001_create_tables.sql
-CREATE TABLE IF NOT EXISTS orders (
-    order_id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    seller_id VARCHAR(24),
-    variant_id VARCHAR(24),
-    total_amount DECIMAL(10,2) DEFAULT 0,
-    currency VARCHAR(10) DEFAULT 'INR',
-    status VARCHAR(20) DEFAULT 'pending',
-    razorpay_order_id VARCHAR(50),
-    receipt VARCHAR(50),
-    razorpay_created_at BIGINT,
-    gateway_type VARCHAR(50),
-    gateway_order_id VARCHAR(50),
-    idempotency_key VARCHAR(100),
-    version INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+______________________
+// /home/satya/myproject/frontend/app/payment/cancel/page.tsx
+'use client';
 
-CREATE INDEX idx_orders_user_id_status ON orders(user_id, status);
-CREATE INDEX idx_orders_razorpay_order_id ON orders(razorpay_order_id);
-CREATE INDEX idx_orders_created_at ON orders(created_at);
-CREATE INDEX idx_orders_status ON orders(status);
-CREATE UNIQUE INDEX idx_orders_idempotency_key ON orders(idempotency_key);
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import axios from 'axios';
 
-CREATE TABLE IF NOT EXISTS saga_transactions (
-    id SERIAL PRIMARY KEY,
-    saga_id VARCHAR(100) UNIQUE NOT NULL,
-    saga_type VARCHAR(50) NOT NULL,
-    status VARCHAR(30) DEFAULT 'started',
-    payload JSONB NOT NULL,
-    current_step INTEGER DEFAULT 0,
-    total_steps INTEGER DEFAULT 0,
-    context JSONB,
-    error_message VARCHAR(500),
-    started_at TIMESTAMP,
-    completed_at TIMESTAMP,
-    retry_count INTEGER DEFAULT 0,
-    max_retries INTEGER DEFAULT 3,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+interface CartItem {
+  productId: string;
+  name: string;
+  price: number;
+  image: string;
+  size: string;
+  color: string;
+  quantity: number;
+}
 
-CREATE INDEX idx_saga_transactions_saga_id ON saga_transactions(saga_id);
-CREATE INDEX idx_saga_transactions_status ON saga_transactions(status);
-CREATE INDEX idx_saga_transactions_saga_type ON saga_transactions(saga_type);
-CREATE INDEX idx_saga_transactions_created_at ON saga_transactions(created_at);
+interface CheckoutData {
+  cartItems: CartItem[];
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+}
 
-CREATE TABLE IF NOT EXISTS saga_steps (
-    id SERIAL PRIMARY KEY,
-    saga_id VARCHAR(100) NOT NULL,
-    step_name VARCHAR(100) NOT NULL,
-    step_order INTEGER NOT NULL,
-    status VARCHAR(30) DEFAULT 'pending',
-    step_data JSONB,
-    compensation_data JSONB,
-    error_message VARCHAR(1000),
-    retry_count INTEGER DEFAULT 0,
-    max_retries INTEGER DEFAULT 0,
-    started_at TIMESTAMP,
-    completed_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+export default function PaymentCancelPage() {
+  const searchParams = useSearchParams();
+  const [isProcessing, setIsProcessing] = useState(true);
+  const [releaseStatus, setReleaseStatus] = useState<'processing' | 'success' | 'error'>('processing');
 
-CREATE INDEX idx_saga_steps_saga_id_step_order ON saga_steps(saga_id, step_order);
-CREATE INDEX idx_saga_steps_status ON saga_steps(status);
+  // Get access token from localStorage
+  const getAccessToken = (): string | null => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('accessToken');
+    }
+    return null;
+  };
 
--- Payment Service Tables
-CREATE TABLE IF NOT EXISTS payments (
-    id SERIAL PRIMARY KEY,
-    payment_id VARCHAR(50) UNIQUE NOT NULL,
-    order_id VARCHAR(50) NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
-    currency VARCHAR(10) NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    method VARCHAR(50),
-    captured BOOLEAN DEFAULT FALSE,
-    email VARCHAR(100),
-    contact VARCHAR(20),
-    payment_created_at BIGINT,
-    error_code VARCHAR(100),
-    error_description VARCHAR(500),
-    error_source VARCHAR(100),
-    error_step VARCHAR(100),
-    error_reason VARCHAR(500),
-    refunded_amount DECIMAL(10,2),
-    refund_reason VARCHAR(500),
-    idempotency_key VARCHAR(100) UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+  // Create axios instance with auth interceptor
+  const createAxiosInstance = () => {
+    const instance = axios.create();
+    
+    instance.interceptors.request.use((config) => {
+      const token = getAccessToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
 
-CREATE INDEX idx_payments_order_id ON payments(order_id);
-CREATE INDEX idx_payments_payment_id ON payments(payment_id);
-CREATE INDEX idx_payments_status ON payments(status);
-CREATE INDEX idx_payments_idempotency_key ON payments(idempotency_key);
+    return instance;
+  };
+
+  useEffect(() => {
+    // Release inventory when payment is cancelled
+    const releaseInventory = async () => {
+      try {
+        // Get checkout data from localStorage
+        const checkoutDataStr = localStorage.getItem('checkoutData');
+        
+        if (checkoutDataStr) {
+          const checkoutData: CheckoutData = JSON.parse(checkoutDataStr);
+          const axiosInstance = createAxiosInstance();
+
+          // Release inventory for all cart items
+          for (const item of checkoutData.cartItems) {
+            try {
+              await axiosInstance.post(
+                'http://localhost:2000/api/product/release-stock',
+                {
+                  productId: item.productId,
+                  quantity: item.quantity,
+                },
+                { timeout: 5000 }
+              );
+              console.log(`Inventory released for product: ${item.productId}, quantity: ${item.quantity}`);
+            } catch (itemError) {
+              console.error(`Failed to release inventory for product ${item.productId}:`, itemError);
+            }
+          }
+
+          setReleaseStatus('success');
+          console.log('All inventory released due to payment cancellation');
+        } else {
+          console.warn('No checkout data found to release inventory');
+          setReleaseStatus('success'); // No inventory to release
+        }
+      } catch (error) {
+        console.error('Failed to release inventory:', error);
+        setReleaseStatus('error');
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+
+    const cleanupAndRelease = async () => {
+      // Release inventory first
+      await releaseInventory();
+
+      // Clean up localStorage items
+      const keysToRemove = [
+        'prefill_data_v1',
+        'rzp_device_id',
+        'truecaller_user_metric',
+        'userConsent',
+        'checkoutData', // Clear checkout data since payment was cancelled
+      ];
+      
+      keysToRemove.forEach((key) => {
+        try {
+          localStorage.removeItem(key);
+        } catch (error) {
+          console.error(`Failed to remove ${key} from localStorage:`, error);
+        }
+      });
+    };
+
+    cleanupAndRelease();
+  }, []);
+
+  if (isProcessing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto mb-4"></div>
+          <h2 className="text-lg font-semibold mb-2">Processing Cancellation</h2>
+          <p className="text-gray-600">Releasing reserved inventory...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
+        <div className="mb-6">
+          <div className="mx-auto w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+            <div className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L5.232 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-yellow-600 mb-2">Payment Cancelled</h1>
+          <p className="text-gray-600">Your payment has been cancelled. No charges were made to your account.</p>
+        </div>
+
+        {/* Status Information */}
+        <div className="bg-gray-50 p-4 rounded-lg mb-6">
+          <div className="flex items-center justify-center mb-2">
+            {releaseStatus === 'success' ? (
+              <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : releaseStatus === 'error' ? (
+              <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600 mr-2"></div>
+            )}
+            <span className={`text-sm font-medium ${
+              releaseStatus === 'success' ? 'text-green-700' : 
+              releaseStatus === 'error' ? 'text-red-700' : 
+              'text-gray-700'
+            }`}>
+              {releaseStatus === 'success' && 'Inventory Successfully Released'}
+              {releaseStatus === 'error' && 'Inventory Release Failed'}
+              {releaseStatus === 'processing' && 'Processing...'}
+            </span>
+          </div>
+          <p className="text-sm text-gray-600">
+            {releaseStatus === 'success' && 'The reserved inventory has been released and is now available for other customers.'}
+            {releaseStatus === 'error' && 'There was an issue releasing the inventory. Please contact support if needed.'}
+            {releaseStatus === 'processing' && 'Please wait while we process your cancellation...'}
+          </p>
+        </div>
+
+        {/* Cancellation Details */}
+        {searchParams.get('error') && (
+          <div className="bg-red-50 p-4 rounded-lg mb-6">
+            <h3 className="text-sm font-semibold text-red-800 mb-1">Cancellation Reason:</h3>
+            <p className="text-sm text-red-700">{decodeURIComponent(searchParams.get('error') || '')}</p>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <Link
+            href="/cart"
+            className="block w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition font-semibold"
+          >
+            Return to Cart
+          </Link>
+          
+          <Link
+            href="/payment"
+            className="block w-full bg-yellow-600 text-white py-3 px-4 rounded-md hover:bg-yellow-700 transition font-semibold"
+          >
+            Try Payment Again
+          </Link>
+          
+          <Link
+            href="/"
+            className="block w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition"
+          >
+            Continue Shopping
+          </Link>
+        </div>
+
+        {/* Help Section */}
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <p className="text-sm text-blue-700 font-medium mb-1">Need Help?</p>
+          <p className="text-xs text-blue-600">
+            If you're experiencing issues with payment, please contact our support team.
+          </p>
+        </div>
+
+        {/* Company Info */}
+        <p className="mt-6 text-xs text-gray-500">
+          Delente Technologies Pvt. Ltd.<br />
+          M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002<br />
+          <span className="text-gray-400">Your items remain in cart</span>
+        </p>
+      </div>
+    </div>
+  );
+}

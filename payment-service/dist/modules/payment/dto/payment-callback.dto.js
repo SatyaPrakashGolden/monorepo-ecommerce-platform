@@ -15,32 +15,38 @@ class PaymentCallbackDto {
     razorpay_payment_id;
     razorpay_order_id;
     razorpay_signature;
-    isFailedPayment;
     error;
+    saga_id;
+    isFailedPayment;
 }
 exports.PaymentCallbackDto = PaymentCallbackDto;
 __decorate([
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], PaymentCallbackDto.prototype, "razorpay_payment_id", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], PaymentCallbackDto.prototype, "razorpay_order_id", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], PaymentCallbackDto.prototype, "razorpay_signature", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsBoolean)(),
-    __metadata("design:type", Boolean)
-], PaymentCallbackDto.prototype, "isFailedPayment", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Object)
 ], PaymentCallbackDto.prototype, "error", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], PaymentCallbackDto.prototype, "saga_id", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], PaymentCallbackDto.prototype, "isFailedPayment", void 0);
 //# sourceMappingURL=payment-callback.dto.js.map

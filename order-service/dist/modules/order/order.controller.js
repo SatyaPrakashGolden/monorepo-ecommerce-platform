@@ -17,8 +17,8 @@ exports.OrderController = void 0;
 const common_1 = require("@nestjs/common");
 const order_service_1 = require("./order.service");
 const create_order_dto_1 = require("./dto/create-order.dto");
-const microservices_1 = require("@nestjs/microservices");
 const order_entity_1 = require("./entities/order.entity");
+const microservices_1 = require("@nestjs/microservices");
 let OrderController = OrderController_1 = class OrderController {
     orderService;
     logger = new common_1.Logger(OrderController_1.name);
@@ -28,41 +28,26 @@ let OrderController = OrderController_1 = class OrderController {
     async createOrder(createOrderDto) {
         return this.orderService.createOrder(createOrderDto);
     }
-    async handlePaymentOrderCreated(data) {
+    async handleOrderCreate(data) {
         try {
-            this.logger.log(`Received payment-order-created event: ${JSON.stringify(data)}`);
-            const createOrderDto = {
-                user_id: data.user_id,
-                product_id: data.product_id || data.variant_id,
-                total_amount: parseFloat(data.total_amount),
-                currency: data.currency || 'INR',
+            const orderData = {
+                user_id: data.payload.user_id,
+                product_id: data.payload.cart_items.map(item => item.productId).join(','),
+                total_amount: data.payload.total_amount,
+                currency: data.payload.currency,
+                saga_id: data.saga_id,
                 status: order_entity_1.OrderStatus.PENDING,
-                razorpay_order_id: data.razorpay_order_id,
-                receipt: data.receipt,
-                razorpay_created_at: data.razorpay_created_at,
             };
-            await this.orderService.createOrder(createOrderDto);
+            const order = await this.orderService.createOrder(orderData);
+            await this.orderService.kafkaClient.emit('saga.order.created', {
+                saga_id: data.saga_id,
+                step_id: data.step_id,
+                order_id: order.id,
+                created_at: order.created_at,
+            });
         }
         catch (error) {
-            this.logger.error('Failed to handle payment-order-created event', error.stack);
-        }
-    }
-    async handlePaymentVerified(data) {
-        try {
-            this.logger.log(`Received payment-verified event: ${JSON.stringify(data)}`);
-            await this.orderService.markOrderAsPaid(data.razorpay_order_id);
-        }
-        catch (error) {
-            this.logger.error('Failed to handle payment-verified event', error.stack);
-        }
-    }
-    async handlePaymentFailed(data) {
-        try {
-            this.logger.log(`Received payment-failed event: ${JSON.stringify(data)}`);
-            await this.orderService.markOrderAsFailed(data.razorpay_order_id, data.error_description);
-        }
-        catch (error) {
-            this.logger.error('Failed to handle payment-failed event', error.stack);
+            this.logger.error('Failed to create order', error.stack);
         }
     }
 };
@@ -75,23 +60,11 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], OrderController.prototype, "createOrder", null);
 __decorate([
-    (0, microservices_1.EventPattern)('payment-order-created'),
+    (0, microservices_1.EventPattern)('saga.order.create'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
-], OrderController.prototype, "handlePaymentOrderCreated", null);
-__decorate([
-    (0, microservices_1.EventPattern)('payment-verified'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], OrderController.prototype, "handlePaymentVerified", null);
-__decorate([
-    (0, microservices_1.EventPattern)('payment-failed'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], OrderController.prototype, "handlePaymentFailed", null);
+], OrderController.prototype, "handleOrderCreate", null);
 exports.OrderController = OrderController = OrderController_1 = __decorate([
     (0, common_1.Controller)('order'),
     __metadata("design:paramtypes", [order_service_1.OrderService])

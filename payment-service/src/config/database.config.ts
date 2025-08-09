@@ -5,6 +5,8 @@ import * as dotenv from 'dotenv';
 
 import { Payment } from '../modules/payment/entities/payment.entity';
 
+import { Order } from '../modules/payment/entities/order.entity';
+import { Saga, SagaStep } from '../modules/payment/entities/saga.entity';
 dotenv.config();
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
@@ -16,6 +18,9 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   database: process.env.DB_NAME || 'fashion_store',
   entities: [
     Payment,
+    Order,
+    Saga,
+    SagaStep, // Ensure all entities are included here  
   ],
   synchronize: true, // Use false in production and manage migrations
 };

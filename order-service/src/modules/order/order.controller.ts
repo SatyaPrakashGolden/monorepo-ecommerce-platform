@@ -1,65 +1,40 @@
-import {
-  Controller,
-  Post,
-  Body,
-  Logger,
-} from '@nestjs/common';
+import { Controller, Post, Body, Logger } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { Order } from './entities/order.entity';
+import { Order, OrderStatus } from './entities/order.entity';
 import { EventPattern } from '@nestjs/microservices';
-import { OrderStatus } from './entities/order.entity';
 
 @Controller('order')
 export class OrderController {
   private readonly logger = new Logger(OrderController.name);
 
-  constructor(private readonly orderService: OrderService) {}
+  constructor(private readonly orderService: OrderService) { }
 
   @Post('create-order')
   async createOrder(@Body() createOrderDto: CreateOrderDto): Promise<Order> {
     return this.orderService.createOrder(createOrderDto);
   }
 
-  @EventPattern('payment-order-created')
-  async handlePaymentOrderCreated(data: any) {
+  @EventPattern('saga.order.create')
+  async handleOrderCreate(data: any) {
     try {
-      this.logger.log(`Received payment-order-created event: ${JSON.stringify(data)}`);
-      
-      const createOrderDto: CreateOrderDto = {
-        user_id: data.user_id,
-        product_id: data.product_id || data.variant_id,
-        total_amount: parseFloat(data.total_amount),
-        currency: data.currency || 'INR',
+      const orderData: CreateOrderDto = {
+        user_id: data.payload.user_id,
+        product_id: data.payload.cart_items.map(item => item.productId).join(','),
+        total_amount: data.payload.total_amount,
+        currency: data.payload.currency,
+        saga_id: data.saga_id,
         status: OrderStatus.PENDING,
-        razorpay_order_id: data.razorpay_order_id,
-        receipt: data.receipt,
-        razorpay_created_at: data.razorpay_created_at,
       };
-
-      await this.orderService.createOrder(createOrderDto);
+      const order = await this.orderService.createOrder(orderData);
+      await this.orderService.kafkaClient.emit('saga.order.created', {
+        saga_id: data.saga_id,
+        step_id: data.step_id,
+        order_id: order.id,
+        created_at: order.created_at,
+      });
     } catch (error) {
-      this.logger.error('Failed to handle payment-order-created event', error.stack);
-    }
-  }
-
-  @EventPattern('payment-verified')
-  async handlePaymentVerified(data: any) {
-    try {
-      this.logger.log(`Received payment-verified event: ${JSON.stringify(data)}`);
-      await this.orderService.markOrderAsPaid(data.razorpay_order_id);
-    } catch (error) {
-      this.logger.error('Failed to handle payment-verified event', error.stack);
-    }
-  }
-
-  @EventPattern('payment-failed')
-  async handlePaymentFailed(data: any) {
-    try {
-      this.logger.log(`Received payment-failed event: ${JSON.stringify(data)}`);
-      await this.orderService.markOrderAsFailed(data.razorpay_order_id, data.error_description);
-    } catch (error) {
-      this.logger.error('Failed to handle payment-failed event', error.stack);
+      this.logger.error('Failed to create order', error.stack);
     }
   }
 }

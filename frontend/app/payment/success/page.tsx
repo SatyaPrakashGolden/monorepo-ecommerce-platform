@@ -1,3 +1,4 @@
+// /home/satya/myproject/frontend/app/payment/success/page.tsx
 'use client';
 
 import { useSearchParams } from 'next/navigation';
@@ -14,13 +15,14 @@ export default function PaymentSuccessPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Clean up any Razorpay related localStorage items
+    // Clean up localStorage
     const keysToRemove = [
       'prefill_data_v1',
       'rzp_device_id',
       'truecaller_user_metric',
       'userConsent',
-      'checkoutData', // Also clear checkout data since payment is successful
+      'checkoutData', // Clear on success
+      'sagaId' // Clear sagaId on success
     ];
     
     keysToRemove.forEach((key) => {
@@ -31,33 +33,15 @@ export default function PaymentSuccessPage() {
       }
     });
 
-    // Optional: Send analytics or confirmation to your backend
+    // Optional: Send analytics
     if (paymentId && orderId) {
-      // You can add analytics tracking here
       console.log('Payment successful:', { paymentId, orderId, userId });
-      
-      // Optional: Call your backend to confirm the payment was processed
-      // confirmPaymentSuccess(paymentId, orderId);
     }
 
     setIsLoading(false);
   }, [paymentId, orderId, userId]);
 
-  // Optional function to confirm payment with backend
-  // const confirmPaymentSuccess = async (paymentId: string, orderId: string) => {
-  //   try {
-  //     await fetch('/api/payment/confirm', {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify({ paymentId, orderId })
-  //     });
-  //   } catch (error) {
-  //     console.error('Failed to confirm payment:', error);
-  //   }
-  // };
-
   const formatPaymentId = (id: string) => {
-    // Format payment ID for better readability (e.g., pay_1234567890 -> pay_****7890)
     if (id.length > 8) {
       return id.substring(0, 4) + '****' + id.substring(id.length - 4);
     }
@@ -75,7 +59,6 @@ export default function PaymentSuccessPage() {
     );
   }
 
-  // Show error if no payment details are found
   if (!paymentId && !orderId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -102,7 +85,6 @@ export default function PaymentSuccessPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
         <div className="mb-6">
-          {/* Success Animation */}
           <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4 animate-pulse">
             <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,10 +94,9 @@ export default function PaymentSuccessPage() {
           </div>
           <h1 className="text-2xl font-bold text-green-600 mb-2">Payment Successful!</h1>
           <p className="text-gray-600">Your payment has been processed successfully.</p>
-          <p className="text-sm text-gray-500 mt-2">You will receive a confirmation email shortly.</p>
+          <p className="text-sm text-gray-500 mt-2">Your order is being processed.</p>
         </div>
 
-        {/* Transaction Details */}
         <div className="bg-gray-50 p-4 rounded-lg mb-6 text-left">
           <h2 className="text-lg font-semibold mb-3 text-center">Transaction Details</h2>
           
@@ -148,7 +129,6 @@ export default function PaymentSuccessPage() {
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="space-y-3">
           <Link
             href="/orders"
@@ -172,7 +152,6 @@ export default function PaymentSuccessPage() {
           </Link>
         </div>
 
-        {/* Additional Information */}
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-blue-700 font-medium mb-1">What happens next?</p>
           <ul className="text-xs text-blue-600 text-left space-y-1">
@@ -182,7 +161,6 @@ export default function PaymentSuccessPage() {
           </ul>
         </div>
 
-        {/* Company Info */}
         <p className="mt-6 text-xs text-gray-500">
           Delente Technologies Pvt. Ltd.<br />
           M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002<br />

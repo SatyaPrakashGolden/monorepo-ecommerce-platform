@@ -1,4 +1,4 @@
-// /src/main.ts
+// /home/satya/myproject/payment-service/src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Inject } from '@nestjs/common';

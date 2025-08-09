@@ -1,15 +1,10 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+// /home/satya/myproject/payment-service/src/modules/payment/entities/payment.entity.ts
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('payments')
 export class Payment {
   @PrimaryGeneratedColumn()
-  id: number; // Auto-increment primary key
+  id: number;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
   payment_id?: string;
@@ -19,9 +14,9 @@ export class Payment {
 
   @Column({ type: 'varchar', default: 'payment' })
   entity: string;
+
   @Column({ type: 'decimal', nullable: true })
   amount?: number;
-
 
   @Column({ type: 'varchar', length: 10 })
   currency: string;
@@ -32,11 +27,10 @@ export class Payment {
   @Column({ type: 'int', nullable: true })
   user_id?: number;
 
-
   @Column({ type: 'varchar', length: 50, nullable: true })
   invoice_id?: string;
 
-  @Column({ type: 'boolean', default: false }) // Default false to avoid null constraint errors
+  @Column({ type: 'boolean', default: false })
   international: boolean;
 
   @Column({ type: 'varchar', length: 30 })

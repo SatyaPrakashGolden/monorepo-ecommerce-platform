@@ -19,7 +19,6 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const order_entity_1 = require("./entities/order.entity");
 const microservices_1 = require("@nestjs/microservices");
-const order_entity_2 = require("./entities/order.entity");
 let OrderService = OrderService_1 = class OrderService {
     orderRepository;
     kafkaClient;
@@ -33,7 +32,7 @@ let OrderService = OrderService_1 = class OrderService {
             const orderData = {
                 ...createOrderDto,
                 total_amount: Number(createOrderDto.total_amount),
-                status: createOrderDto.status || order_entity_2.OrderStatus.PENDING,
+                status: createOrderDto.status || order_entity_1.OrderStatus.PENDING,
             };
             const order = this.orderRepository.create(orderData);
             const savedOrder = await this.orderRepository.save(order);
@@ -47,104 +46,30 @@ let OrderService = OrderService_1 = class OrderService {
     }
     async findOrderByRazorpayId(razorpayOrderId) {
         try {
-            return await this.orderRepository.findOne({
-                where: { razorpay_order_id: razorpayOrderId },
-            });
+            return await this.orderRepository.findOne({ where: { razorpay_order_id: razorpayOrderId } });
         }
         catch (error) {
             this.logger.error(`Failed to find order by razorpay_order_id: ${razorpayOrderId}`, error.stack);
             return null;
         }
     }
-    async findOrdersByUserId(userId) {
-        try {
-            return await this.orderRepository.find({
-                where: { user_id: userId },
-                order: { created_at: 'DESC' },
-            });
-        }
-        catch (error) {
-            this.logger.error(`Failed to find orders for user: ${userId}`, error.stack);
-            throw new common_1.BadRequestException('Could not retrieve orders');
-        }
-    }
     async markOrderAsPaid(razorpayOrderId) {
         const order = await this.findOrderByRazorpayId(razorpayOrderId);
         if (!order) {
-            this.logger.warn(`Order with Razorpay Order ID ${razorpayOrderId} not found`);
-            throw new common_1.NotFoundException('Order not found');
+            throw new common_1.NotFoundException(`Order with razorpay_order_id ${razorpayOrderId} not found`);
         }
-        if (order.status === order_entity_2.OrderStatus.SUCCESS) {
-            this.logger.warn(`Order ${order.id} is already marked as paid`);
-            return order;
-        }
-        try {
-            order.status = order_entity_2.OrderStatus.SUCCESS;
-            const updatedOrder = await this.orderRepository.save(order);
-            this.logger.log(`✅ Order marked as success: ${updatedOrder.id}`);
-            await this.kafkaClient.emit('order-payment-success', {
-                orderId: updatedOrder.id,
-                userId: updatedOrder.user_id,
-                productId: updatedOrder.product_id,
-                amount: updatedOrder.total_amount,
-                razorpayOrderId: updatedOrder.razorpay_order_id,
-            }).toPromise();
-            return updatedOrder;
-        }
-        catch (error) {
-            this.logger.error(`Failed to mark order as paid: ${razorpayOrderId}`, error.stack);
-            throw new common_1.BadRequestException('Could not update order status');
-        }
+        order.status = order_entity_1.OrderStatus.SUCCESS;
+        await this.orderRepository.save(order);
+        this.logger.log(`Order marked as paid: ${razorpayOrderId}`);
     }
-    async markOrderAsFailed(razorpayOrderId, reason) {
+    async markOrderAsFailed(razorpayOrderId, errorDescription) {
         const order = await this.findOrderByRazorpayId(razorpayOrderId);
         if (!order) {
-            this.logger.warn(`Order with Razorpay Order ID ${razorpayOrderId} not found`);
-            throw new common_1.NotFoundException('Order not found');
+            throw new common_1.NotFoundException(`Order with razorpay_order_id ${razorpayOrderId} not found`);
         }
-        try {
-            order.status = order_entity_2.OrderStatus.FAILED;
-            const updatedOrder = await this.orderRepository.save(order);
-            this.logger.log(`❌ Order marked as failed: ${updatedOrder.id}, Reason: ${reason || 'Unknown'}`);
-            await this.kafkaClient.emit('order-payment-failed', {
-                orderId: updatedOrder.id,
-                userId: updatedOrder.user_id,
-                productId: updatedOrder.product_id,
-                amount: updatedOrder.total_amount,
-                razorpayOrderId: updatedOrder.razorpay_order_id,
-                reason: reason || 'Payment failed',
-            }).toPromise();
-            return updatedOrder;
-        }
-        catch (error) {
-            this.logger.error(`Failed to mark order as failed: ${razorpayOrderId}`, error.stack);
-            throw new common_1.BadRequestException('Could not update order status');
-        }
-    }
-    async markOrderAsCancelled(razorpayOrderId, reason) {
-        const order = await this.findOrderByRazorpayId(razorpayOrderId);
-        if (!order) {
-            this.logger.warn(`Order with Razorpay Order ID ${razorpayOrderId} not found`);
-            throw new common_1.NotFoundException('Order not found');
-        }
-        try {
-            order.status = order_entity_2.OrderStatus.CANCELLED;
-            const updatedOrder = await this.orderRepository.save(order);
-            this.logger.log(`🚫 Order marked as cancelled: ${updatedOrder.id}, Reason: ${reason || 'User cancelled'}`);
-            await this.kafkaClient.emit('order-payment-cancelled', {
-                orderId: updatedOrder.id,
-                userId: updatedOrder.user_id,
-                productId: updatedOrder.product_id,
-                amount: updatedOrder.total_amount,
-                razorpayOrderId: updatedOrder.razorpay_order_id,
-                reason: reason || 'Order cancelled',
-            }).toPromise();
-            return updatedOrder;
-        }
-        catch (error) {
-            this.logger.error(`Failed to mark order as cancelled: ${razorpayOrderId}`, error.stack);
-            throw new common_1.BadRequestException('Could not update order status');
-        }
+        order.status = order_entity_1.OrderStatus.FAILED;
+        await this.orderRepository.save(order);
+        this.logger.log(`Order marked as failed: ${razorpayOrderId}, Reason: ${errorDescription}`);
     }
 };
 exports.OrderService = OrderService;

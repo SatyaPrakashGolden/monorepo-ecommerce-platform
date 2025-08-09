@@ -9,11 +9,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrderModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
-const kafka_module_1 = require("../../kafka/kafka.module");
-const order_service_1 = require("./order.service");
+const microservices_1 = require("@nestjs/microservices");
 const order_controller_1 = require("./order.controller");
+const order_service_1 = require("./order.service");
 const order_entity_1 = require("./entities/order.entity");
-const database_module_1 = require("../../database/database.module");
 let OrderModule = class OrderModule {
 };
 exports.OrderModule = OrderModule;
@@ -21,11 +20,24 @@ exports.OrderModule = OrderModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([order_entity_1.Order]),
-            database_module_1.DatabaseModule,
-            kafka_module_1.KafkaModule
+            microservices_1.ClientsModule.register([
+                {
+                    name: 'KAFKA_SERVICE',
+                    transport: microservices_1.Transport.KAFKA,
+                    options: {
+                        client: {
+                            clientId: 'order-service',
+                            brokers: ['localhost:9092'],
+                        },
+                        consumer: {
+                            groupId: 'order-service-group',
+                        },
+                    },
+                },
+            ]),
         ],
-        providers: [order_service_1.OrderService],
         controllers: [order_controller_1.OrderController],
+        providers: [order_service_1.OrderService],
         exports: [order_service_1.OrderService],
     })
 ], OrderModule);

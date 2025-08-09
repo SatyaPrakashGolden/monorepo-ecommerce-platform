@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.typeOrmConfig = void 0;
 const dotenv = require("dotenv");
 const payment_entity_1 = require("../modules/payment/entities/payment.entity");
+const order_entity_1 = require("../modules/payment/entities/order.entity");
+const saga_entity_1 = require("../modules/payment/entities/saga.entity");
 dotenv.config();
 exports.typeOrmConfig = {
     type: 'mysql',
@@ -13,6 +15,9 @@ exports.typeOrmConfig = {
     database: process.env.DB_NAME || 'fashion_store',
     entities: [
         payment_entity_1.Payment,
+        order_entity_1.Order,
+        saga_entity_1.Saga,
+        saga_entity_1.SagaStep,
     ],
     synchronize: true,
 };

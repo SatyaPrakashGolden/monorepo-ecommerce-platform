@@ -1,5 +1,4 @@
-
-
+// /home/satya/myproject/frontend/app/payment/callback/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import axios from 'axios';
@@ -15,7 +14,7 @@ export async function POST(request: NextRequest) {
     console.log('Frontend callback received:', { razorpay_payment_id, razorpay_order_id, razorpay_signature });
     
     // Forward to backend for processing
-    const response = await axios.post('http://localhost:5006/api/payment/callback', {
+    const response = await axios.post('http://localhost:2004/api/payment/callback', {
       razorpay_payment_id,
       razorpay_order_id,
       razorpay_signature,
@@ -23,21 +22,22 @@ export async function POST(request: NextRequest) {
       timeout: 10000,
     });
     
-    // Backend will handle the redirect
-    return NextResponse.redirect(response.data.redirect_url || 
-      new URL(`/payment/success?payment_id=${razorpay_payment_id}&order_id=${razorpay_order_id}`, request.url)
-    );
+    // Backend will handle the redirect, but if response has redirect_url, use it
+    const redirectUrl = response.data.redirect_url || 
+      `/payment/success?payment_id=${razorpay_payment_id}&order_id=${razorpay_order_id}`;
+
+    return NextResponse.redirect(new URL(redirectUrl, request.url));
     
   } catch (error) {
     console.error('Frontend callback error:', error);
     
     // Log failure to backend
     try {
-      await axios.post('http://localhost:5006/api/payment/failure', {
+      await axios.post('http://localhost:2004/api/payment/failure', {
         orderId: 'unknown',
         paymentId: 'unknown',
         errorCode: 'FRONTEND_CALLBACK_ERROR',
-        errorDescription:  'Frontend callback processing failed',
+        errorDescription: 'Frontend callback processing failed',
         errorReason: 'FRONTEND_ERROR',
         type: 'frontend_error',
       });

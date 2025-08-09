@@ -1,20 +1,31 @@
-// /home/satya/ecommerce/order-service/src/modules/order/order.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { KafkaModule } from '../../kafka/kafka.module';
-import { OrderService } from './order.service';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 import { OrderController } from './order.controller';
+import { OrderService } from './order.service';
 import { Order } from './entities/order.entity';
-import { DatabaseModule } from '../../database/database.module'; 
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order]), 
-    DatabaseModule,
-    KafkaModule
+    TypeOrmModule.forFeature([Order]),
+    ClientsModule.register([
+      {
+        name: 'KAFKA_SERVICE',
+        transport: Transport.KAFKA,
+        options: {
+          client: {
+            clientId: 'order-service',
+            brokers: ['localhost:9092'],
+          },
+          consumer: {
+            groupId: 'order-service-group',
+          },
+        },
+      },
+    ]),
   ],
-  providers: [OrderService],
   controllers: [OrderController],
-  exports: [OrderService], 
+  providers: [OrderService],
+  exports: [OrderService],
 })
 export class OrderModule {}

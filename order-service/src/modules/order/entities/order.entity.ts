@@ -1,16 +1,10 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 export enum OrderStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
-  FAILED = 'failed', // Added failed status
-  CANCELLED = 'cancelled', // Added cancelled status
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
 }
 
 @Entity('orders')
@@ -21,20 +15,16 @@ export class Order {
   @Column()
   user_id: number;
 
-  @Column({ type: 'varchar', length: 255, nullable: true }) // Increased length for multiple product IDs
+  @Column({ type: 'varchar', length: 255, nullable: true })
   product_id?: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  total_amount: number; // Changed from string to number
+  total_amount: number;
 
   @Column({ type: 'varchar', length: 10, default: 'INR' })
   currency: string;
 
-  @Column({
-    type: 'enum',
-    enum: OrderStatus,
-    default: OrderStatus.PENDING,
-  })
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
   status: OrderStatus;
 
   @Column({ type: 'varchar', length: 50, nullable: true })

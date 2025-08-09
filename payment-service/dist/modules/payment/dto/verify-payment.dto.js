@@ -12,24 +12,21 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.VerifyPaymentDto = void 0;
 const class_validator_1 = require("class-validator");
 class VerifyPaymentDto {
-    productId;
-    paymentId;
-    signature;
+    razorpay_payment_id;
+    razorpay_order_id;
+    razorpay_signature;
 }
 exports.VerifyPaymentDto = VerifyPaymentDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], VerifyPaymentDto.prototype, "productId", void 0);
+], VerifyPaymentDto.prototype, "razorpay_payment_id", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], VerifyPaymentDto.prototype, "paymentId", void 0);
+], VerifyPaymentDto.prototype, "razorpay_order_id", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], VerifyPaymentDto.prototype, "signature", void 0);
+], VerifyPaymentDto.prototype, "razorpay_signature", void 0);
 //# sourceMappingURL=verify-payment.dto.js.map

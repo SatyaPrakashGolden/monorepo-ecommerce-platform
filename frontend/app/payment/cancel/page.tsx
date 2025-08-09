@@ -1,27 +1,10 @@
+
 'use client';
 
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
-
-interface CartItem {
-  productId: string;
-  name: string;
-  price: number;
-  image: string;
-  size: string;
-  color: string;
-  quantity: number;
-}
-
-interface CheckoutData {
-  cartItems: CartItem[];
-  subtotal: number;
-  shipping: number;
-  tax: number;
-  total: number;
-}
 
 export default function PaymentCancelPage() {
   const searchParams = useSearchParams();
@@ -52,58 +35,50 @@ export default function PaymentCancelPage() {
   };
 
   useEffect(() => {
-    // Release inventory when payment is cancelled
-    const releaseInventory = async () => {
+    // Trigger compensation via backend on cancel
+    const triggerCompensation = async () => {
       try {
-        // Get checkout data from localStorage
-        const checkoutDataStr = localStorage.getItem('checkoutData');
+        // Get sagaId from localStorage
+        const sagaId = localStorage.getItem('sagaId');
         
-        if (checkoutDataStr) {
-          const checkoutData: CheckoutData = JSON.parse(checkoutDataStr);
+        if (sagaId) {
           const axiosInstance = createAxiosInstance();
 
-          // Release inventory for all cart items
-          for (const item of checkoutData.cartItems) {
-            try {
-              await axiosInstance.post(
-                'http://localhost:2000/api/product/release-stock',
-                {
-                  productId: item.productId,
-                  quantity: item.quantity,
-                },
-                { timeout: 5000 }
-              );
-              console.log(`Inventory released for product: ${item.productId}, quantity: ${item.quantity}`);
-            } catch (itemError) {
-              console.error(`Failed to release inventory for product ${item.productId}:`, itemError);
-            }
-          }
+          // Call backend to trigger failure/compensation
+          await axiosInstance.post(
+            'http://localhost:2004/api/payment/cancel',
+            {
+              saga_id: sagaId,
+              error_code: 'USER_CANCEL',
+              error_description: 'Payment cancelled by user',
+            },
+            { timeout: 5000 }
+          );
 
           setReleaseStatus('success');
-          console.log('All inventory released due to payment cancellation');
+          console.log('Compensation triggered for saga:', sagaId);
         } else {
-          console.warn('No checkout data found to release inventory');
-          setReleaseStatus('success'); // No inventory to release
+          console.warn('No sagaId found for compensation');
+          setReleaseStatus('success'); // No saga to compensate
         }
       } catch (error) {
-        console.error('Failed to release inventory:', error);
+        console.error('Failed to trigger compensation:', error);
         setReleaseStatus('error');
       } finally {
         setIsProcessing(false);
       }
     };
 
-    const cleanupAndRelease = async () => {
-      // Release inventory first
-      await releaseInventory();
+    const cleanupAndCompensate = async () => {
+      await triggerCompensation();
 
-      // Clean up localStorage items
+      // Clean up localStorage
       const keysToRemove = [
         'prefill_data_v1',
         'rzp_device_id',
         'truecaller_user_metric',
         'userConsent',
-        'checkoutData', // Clear checkout data since payment was cancelled
+        'sagaId' // Clear sagaId on cancel
       ];
       
       keysToRemove.forEach((key) => {
@@ -115,7 +90,7 @@ export default function PaymentCancelPage() {
       });
     };
 
-    cleanupAndRelease();
+    cleanupAndCompensate();
   }, []);
 
   if (isProcessing) {
@@ -124,7 +99,7 @@ export default function PaymentCancelPage() {
         <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto mb-4"></div>
           <h2 className="text-lg font-semibold mb-2">Processing Cancellation</h2>
-          <p className="text-gray-600">Releasing reserved inventory...</p>
+          <p className="text-gray-600">Triggering compensation...</p>
         </div>
       </div>
     );
@@ -142,41 +117,33 @@ export default function PaymentCancelPage() {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-yellow-600 mb-2">Payment Cancelled</h1>
-          <p className="text-gray-600">Your payment has been cancelled. No charges were made to your account.</p>
+          <p className="text-gray-600">Your payment has been cancelled. No charges were made.</p>
         </div>
 
-        {/* Status Information */}
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <div className="flex items-center justify-center mb-2">
             {releaseStatus === 'success' ? (
               <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-            ) : releaseStatus === 'error' ? (
+            ) : (
               <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            ) : (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600 mr-2"></div>
             )}
             <span className={`text-sm font-medium ${
-              releaseStatus === 'success' ? 'text-green-700' : 
-              releaseStatus === 'error' ? 'text-red-700' : 
-              'text-gray-700'
+              releaseStatus === 'success' ? 'text-green-700' : 'text-red-700'
             }`}>
-              {releaseStatus === 'success' && 'Inventory Successfully Released'}
-              {releaseStatus === 'error' && 'Inventory Release Failed'}
-              {releaseStatus === 'processing' && 'Processing...'}
+              {releaseStatus === 'success' && 'Compensation Successful'}
+              {releaseStatus === 'error' && 'Compensation Failed'}
             </span>
           </div>
           <p className="text-sm text-gray-600">
-            {releaseStatus === 'success' && 'The reserved inventory has been released and is now available for other customers.'}
-            {releaseStatus === 'error' && 'There was an issue releasing the inventory. Please contact support if needed.'}
-            {releaseStatus === 'processing' && 'Please wait while we process your cancellation...'}
+            {releaseStatus === 'success' && 'The reserved resources have been released.'}
+            {releaseStatus === 'error' && 'There was an issue with compensation. Please contact support.'}
           </p>
         </div>
 
-        {/* Cancellation Details */}
         {searchParams.get('error') && (
           <div className="bg-red-50 p-4 rounded-lg mb-6">
             <h3 className="text-sm font-semibold text-red-800 mb-1">Cancellation Reason:</h3>
@@ -184,7 +151,6 @@ export default function PaymentCancelPage() {
           </div>
         )}
 
-        {/* Action Buttons */}
         <div className="space-y-3">
           <Link
             href="/cart"
@@ -208,7 +174,6 @@ export default function PaymentCancelPage() {
           </Link>
         </div>
 
-        {/* Help Section */}
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-blue-700 font-medium mb-1">Need Help?</p>
           <p className="text-xs text-blue-600">
@@ -216,7 +181,6 @@ export default function PaymentCancelPage() {
           </p>
         </div>
 
-        {/* Company Info */}
         <p className="mt-6 text-xs text-gray-500">
           Delente Technologies Pvt. Ltd.<br />
           M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002<br />
