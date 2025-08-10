@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import { useSearchParams } from 'next/navigation';
@@ -8,19 +10,18 @@ export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
   const paymentId = searchParams.get('payment_id');
   const orderId = searchParams.get('order_id');
-  const userId = searchParams.get('user_id');
+  const sagaId = searchParams.get('saga_id');
   const amount = searchParams.get('amount');
   
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Clean up any Razorpay related localStorage items
     const keysToRemove = [
       'prefill_data_v1',
       'rzp_device_id',
       'truecaller_user_metric',
       'userConsent',
-      'checkoutData', // Also clear checkout data since payment is successful
+      'checkoutData',
     ];
     
     keysToRemove.forEach((key) => {
@@ -31,33 +32,14 @@ export default function PaymentSuccessPage() {
       }
     });
 
-    // Optional: Send analytics or confirmation to your backend
-    if (paymentId && orderId) {
-      // You can add analytics tracking here
-      console.log('Payment successful:', { paymentId, orderId, userId });
-      
-      // Optional: Call your backend to confirm the payment was processed
-      // confirmPaymentSuccess(paymentId, orderId);
+    if (paymentId && orderId && sagaId) {
+      console.log('Payment successful:', { paymentId, orderId, sagaId, amount });
     }
 
     setIsLoading(false);
-  }, [paymentId, orderId, userId]);
-
-  // Optional function to confirm payment with backend
-  // const confirmPaymentSuccess = async (paymentId: string, orderId: string) => {
-  //   try {
-  //     await fetch('/api/payment/confirm', {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify({ paymentId, orderId })
-  //     });
-  //   } catch (error) {
-  //     console.error('Failed to confirm payment:', error);
-  //   }
-  // };
+  }, [paymentId, orderId, sagaId, amount]);
 
   const formatPaymentId = (id: string) => {
-    // Format payment ID for better readability (e.g., pay_1234567890 -> pay_****7890)
     if (id.length > 8) {
       return id.substring(0, 4) + '****' + id.substring(id.length - 4);
     }
@@ -75,8 +57,7 @@ export default function PaymentSuccessPage() {
     );
   }
 
-  // Show error if no payment details are found
-  if (!paymentId && !orderId) {
+  if (!paymentId || !orderId || !sagaId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
@@ -102,7 +83,6 @@ export default function PaymentSuccessPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
         <div className="mb-6">
-          {/* Success Animation */}
           <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4 animate-pulse">
             <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,30 +95,30 @@ export default function PaymentSuccessPage() {
           <p className="text-sm text-gray-500 mt-2">You will receive a confirmation email shortly.</p>
         </div>
 
-        {/* Transaction Details */}
         <div className="bg-gray-50 p-4 rounded-lg mb-6 text-left">
           <h2 className="text-lg font-semibold mb-3 text-center">Transaction Details</h2>
           
-          {paymentId && (
-            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-              <span className="text-sm font-medium text-gray-600">Payment ID:</span>
-              <span className="text-sm text-gray-800 font-mono">{formatPaymentId(paymentId)}</span>
-            </div>
-          )}
+          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+            <span className="text-sm font-medium text-gray-600">Payment ID:</span>
+            <span className="text-sm text-gray-800 font-mono">{formatPaymentId(paymentId)}</span>
+          </div>
           
-          {orderId && (
-            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-              <span className="text-sm font-medium text-gray-600">Order ID:</span>
-              <span className="text-sm text-gray-800 font-mono">{orderId}</span>
-            </div>
-          )}
+          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+            <span className="text-sm font-medium text-gray-600">Order ID:</span>
+            <span className="text-sm text-gray-800 font-mono">{formatPaymentId(orderId)}</span>
+          </div>
           
           {amount && (
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-sm font-medium text-gray-600">Amount:</span>
-              <span className="text-sm text-gray-800 font-semibold">₹{amount}</span>
+              <span className="text-sm text-gray-800 font-semibold">{formatPrice(parseFloat(amount))}</span>
             </div>
           )}
+          
+          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+            <span className="text-sm font-medium text-gray-600">Saga ID:</span>
+            <span className="text-sm text-gray-800 font-mono">{formatPaymentId(sagaId)}</span>
+          </div>
           
           <div className="flex justify-between items-center py-2">
             <span className="text-sm font-medium text-gray-600">Status:</span>
@@ -148,7 +128,6 @@ export default function PaymentSuccessPage() {
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="space-y-3">
           <Link
             href="/orders"
@@ -172,7 +151,6 @@ export default function PaymentSuccessPage() {
           </Link>
         </div>
 
-        {/* Additional Information */}
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-blue-700 font-medium mb-1">What happens next?</p>
           <ul className="text-xs text-blue-600 text-left space-y-1">
@@ -182,7 +160,6 @@ export default function PaymentSuccessPage() {
           </ul>
         </div>
 
-        {/* Company Info */}
         <p className="mt-6 text-xs text-gray-500">
           Delente Technologies Pvt. Ltd.<br />
           M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002<br />
@@ -192,3 +169,13 @@ export default function PaymentSuccessPage() {
     </div>
   );
 }
+
+// Helper function to format price in INR
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(price);
+};

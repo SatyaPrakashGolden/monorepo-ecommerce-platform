@@ -1,3 +1,4 @@
+// order/order.controller.ts
 import {
   Controller,
   Post,
@@ -8,7 +9,6 @@ import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Order } from './entities/order.entity';
 import { EventPattern } from '@nestjs/microservices';
-import { OrderStatus } from './entities/order.entity';
 
 @Controller('order')
 export class OrderController {
@@ -21,25 +21,34 @@ export class OrderController {
     return this.orderService.createOrder(createOrderDto);
   }
 
-  @EventPattern('payment-order-created')
-  async handlePaymentOrderCreated(data: any) {
+  // Saga Event Handlers
+  @EventPattern('order-creation-started')
+  async handleOrderCreationStarted(data: any) {
     try {
-      this.logger.log(`Received payment-order-created event: ${JSON.stringify(data)}`);
-      
-      const createOrderDto: CreateOrderDto = {
-        user_id: data.user_id,
-        product_id: data.product_id || data.variant_id,
-        total_amount: parseFloat(data.total_amount),
-        currency: data.currency || 'INR',
-        status: OrderStatus.PENDING,
-        razorpay_order_id: data.razorpay_order_id,
-        receipt: data.receipt,
-        razorpay_created_at: data.razorpay_created_at,
-      };
-
-      await this.orderService.createOrder(createOrderDto);
+      this.logger.log(`Received order-creation-started event: ${JSON.stringify(data)}`);
+      // This event is handled by payment service, order service just logs it
     } catch (error) {
-      this.logger.error('Failed to handle payment-order-created event', error.stack);
+      this.logger.error('Failed to handle order-creation-started event', error.stack);
+    }
+  }
+
+  @EventPattern('order-created')
+  async handleOrderCreated(data: any) {
+    try {
+      this.logger.log(`Received order-created event: ${JSON.stringify(data)}`);
+      await this.orderService.handleOrderCreated(data);
+    } catch (error) {
+      this.logger.error('Failed to handle order-created event', error.stack);
+    }
+  }
+
+  @EventPattern('payment-processing-started')
+  async handlePaymentProcessingStarted(data: any) {
+    try {
+      this.logger.log(`Received payment-processing-started event: ${JSON.stringify(data)}`);
+      // Order service can log this for monitoring
+    } catch (error) {
+      this.logger.error('Failed to handle payment-processing-started event', error.stack);
     }
   }
 
@@ -47,7 +56,7 @@ export class OrderController {
   async handlePaymentVerified(data: any) {
     try {
       this.logger.log(`Received payment-verified event: ${JSON.stringify(data)}`);
-      await this.orderService.markOrderAsPaid(data.razorpay_order_id);
+      await this.orderService.handlePaymentVerified(data);
     } catch (error) {
       this.logger.error('Failed to handle payment-verified event', error.stack);
     }
@@ -57,9 +66,39 @@ export class OrderController {
   async handlePaymentFailed(data: any) {
     try {
       this.logger.log(`Received payment-failed event: ${JSON.stringify(data)}`);
-      await this.orderService.markOrderAsFailed(data.razorpay_order_id, data.error_description);
+      await this.orderService.handlePaymentFailed(data);
     } catch (error) {
       this.logger.error('Failed to handle payment-failed event', error.stack);
+    }
+  }
+
+  @EventPattern('order-cancellation-requested')
+  async handleOrderCancellationRequest(data: any) {
+    try {
+      this.logger.log(`Received order-cancellation-requested event: ${JSON.stringify(data)}`);
+      await this.orderService.handleOrderCancellationRequest(data);
+    } catch (error) {
+      this.logger.error('Failed to handle order-cancellation-requested event', error.stack);
+    }
+  }
+
+  @EventPattern('payment-reversal-requested')
+  async handlePaymentReversalRequest(data: any) {
+    try {
+      this.logger.log(`Received payment-reversal-requested event: ${JSON.stringify(data)}`);
+      // Order service acknowledges the reversal request
+    } catch (error) {
+      this.logger.error('Failed to handle payment-reversal-requested event', error.stack);
+    }
+  }
+
+  @EventPattern('payment-reversed')
+  async handlePaymentReversed(data: any) {
+    try {
+      this.logger.log(`Received payment-reversed event: ${JSON.stringify(data)}`);
+      // Order service can update internal status if needed
+    } catch (error) {
+      this.logger.error('Failed to handle payment-reversed event', error.stack);
     }
   }
 }

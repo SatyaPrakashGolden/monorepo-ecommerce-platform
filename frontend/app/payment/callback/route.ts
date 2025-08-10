@@ -1,7 +1,6 @@
 
 
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 import axios from 'axios';
 
 export async function POST(request: NextRequest) {
@@ -11,42 +10,56 @@ export async function POST(request: NextRequest) {
     const razorpay_payment_id = formData.get('razorpay_payment_id') as string;
     const razorpay_order_id = formData.get('razorpay_order_id') as string;
     const razorpay_signature = formData.get('razorpay_signature') as string;
-    
-    console.log('Frontend callback received:', { razorpay_payment_id, razorpay_order_id, razorpay_signature });
-    
-    // Forward to backend for processing
-    const response = await axios.post('http://localhost:5006/api/payment/callback', {
+    const saga_id = request.nextUrl.searchParams.get('saga_id') || '';
+
+    console.log('Frontend callback received:', { razorpay_payment_id, razorpay_order_id, razorpay_signature, saga_id });
+
+    const axiosInstance = axios.create({
+      baseURL: 'http://localhost:2004/api',
+    });
+
+    const response = await axiosInstance.post('/payment/callback', {
       razorpay_payment_id,
       razorpay_order_id,
       razorpay_signature,
+      isFailedPayment: false,
     }, {
       timeout: 10000,
     });
-    
-    // Backend will handle the redirect
-    return NextResponse.redirect(response.data.redirect_url || 
-      new URL(`/payment/success?payment_id=${razorpay_payment_id}&order_id=${razorpay_order_id}`, request.url)
+
+    const redirectUrl = new URL(response.data.redirect_url || 
+      `/payment/success?payment_id=${razorpay_payment_id}&order_id=${razorpay_order_id}&saga_id=${saga_id}`, 
+      request.url
     );
-    
-  } catch (error) {
+
+    return NextResponse.redirect(redirectUrl);
+  } catch (error: any) {
     console.error('Frontend callback error:', error);
-    
-    // Log failure to backend
+
+    const saga_id = request.nextUrl.searchParams.get('saga_id') || 'unknown';
+
     try {
-      await axios.post('http://localhost:5006/api/payment/failure', {
+      const axiosInstance = axios.create({
+        baseURL: 'http://localhost:2004/api',
+      });
+
+      await axiosInstance.post('/payment/failure', {
         orderId: 'unknown',
         paymentId: 'unknown',
-        errorCode: 'FRONTEND_CALLBACK_ERROR',
-        errorDescription:  'Frontend callback processing failed',
+        errorCode: error.response?.status?.toString() || 'FRONTEND_CALLBACK_ERROR',
+        errorDescription: error.response?.data?.message || error.message || 'Frontend callback processing failed',
         errorReason: 'FRONTEND_ERROR',
         type: 'frontend_error',
+        sagaId: saga_id,
       });
     } catch (logError) {
       console.error('Failed to log frontend callback error:', logError);
     }
-    
-    return NextResponse.redirect(
-      new URL('/payment/failure?error=frontend_callback_error', request.url)
-    );
+
+    const redirectUrl = new URL(`/payment/cancel?error=${encodeURIComponent(
+      error.response?.data?.message || error.message || 'frontend_callback_error'
+    )}&saga_id=${saga_id}`, request.url);
+
+    return NextResponse.redirect(redirectUrl);
   }
 }

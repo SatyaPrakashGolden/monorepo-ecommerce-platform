@@ -28,6 +28,7 @@ let Order = class Order {
     razorpay_order_id;
     receipt;
     razorpay_created_at;
+    payment_id;
     created_at;
     updated_at;
 };
@@ -72,6 +73,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'bigint', nullable: true }),
     __metadata("design:type", Number)
 ], Order.prototype, "razorpay_created_at", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Number)
+], Order.prototype, "payment_id", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ type: 'timestamp' }),
     __metadata("design:type", Date)

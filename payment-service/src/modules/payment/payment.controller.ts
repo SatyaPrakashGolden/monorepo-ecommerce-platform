@@ -1,3 +1,4 @@
+// payment/payment.controller.ts
 import { 
   Controller, 
   Post, 
@@ -14,7 +15,8 @@ import { PaymentService } from './payment.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { PaymentCallbackDto } from './dto/payment-callback.dto';
 import { Logger } from '@nestjs/common';
-import { UserAuthGuard } from '../../auth/user.middleware';
+import { UserAuthGuard } from '../../auth/user.middleware';  // Assume this exists
+import { EventPattern } from '@nestjs/microservices';
 
 @Controller('payment')
 export class PaymentController {
@@ -77,7 +79,7 @@ export class PaymentController {
         result = await this.paymentService.handleRazorpayCallback({
           razorpay_payment_id: payment_id,
           razorpay_order_id: body.razorpay_order_id || '',
-          razorpay_signature: undefined,
+         razorpay_signature: undefined,
           isFailedPayment: true,
         });
 
@@ -90,7 +92,7 @@ export class PaymentController {
         return res.redirect(
           `${failureRedirectUrl}?error=${encodeURIComponent(
             result.error_description || 'Payment failed',
-          )}&user_id=${user_id}&payment_id=${payment_id}`,
+          )}&user_id=${user_id}&payment_id=${payment_id}&saga_id=${result.sagaId}`,
         );
       } else {
         // Handle successful payment
@@ -111,7 +113,7 @@ export class PaymentController {
 
         const successRedirectUrl = process.env.SUCCESS_REDIRECT_URL || 'http://localhost:3000/payment/success';
         return res.redirect(
-          `${successRedirectUrl}?payment_id=${result.payment_id}&order_id=${result.order_id}`
+          `${successRedirectUrl}?payment_id=${result.payment_id}&order_id=${result.order_id}&saga_id=${result.sagaId}`
         );
       }
     } catch (error) {
@@ -143,4 +145,54 @@ export class PaymentController {
     }
   }
   
+  // Saga Event Handlers
+  @EventPattern('order-creation-started')
+  async handleOrderCreationStarted(data: any) {
+    try {
+      this.logger.log(`Received order-creation-started event: ${JSON.stringify(data)}`);
+      // Payment service initiates this event, so just log for monitoring
+    } catch (error) {
+      this.logger.error('Failed to handle order-creation-started event', error.stack);
+    }
+  }
+
+  @EventPattern('order-created')
+  async handleOrderCreated(data: any) {
+    try {
+      this.logger.log(`Received order-created event: ${JSON.stringify(data)}`);
+      // Payment service acknowledges order creation
+    } catch (error) {
+      this.logger.error('Failed to handle order-created event', error.stack);
+    }
+  }
+
+  @EventPattern('payment-reversal-requested')
+  async handlePaymentReversalRequest(data: any) {
+    try {
+      this.logger.log(`Received payment-reversal-requested event: ${JSON.stringify(data)}`);
+      await this.paymentService.handlePaymentReversalRequest(data);
+    } catch (error) {
+      this.logger.error('Failed to handle payment-reversal-requested event', error.stack);
+    }
+  }
+
+  @EventPattern('order-completed')
+  async handleOrderCompleted(data: any) {
+    try {
+      this.logger.log(`Received order-completed event: ${JSON.stringify(data)}`);
+      // Payment service can perform final cleanup or notifications
+    } catch (error) {
+      this.logger.error('Failed to handle order-completed event', error.stack);
+    }
+  }
+
+  @EventPattern('order-failed')
+  async handleOrderFailed(data: any) {
+    try {
+      this.logger.log(`Received order-failed event: ${JSON.stringify(data)}`);
+      // Payment service can perform cleanup or notifications
+    } catch (error) {
+      this.logger.error('Failed to handle order-failed event', error.stack);
+    }
+  }
 }

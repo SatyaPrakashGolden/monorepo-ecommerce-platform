@@ -1,7 +1,7 @@
 import { OrderStatus } from '../entities/order.entity';
 export declare class CreateOrderDto {
     user_id: number;
-    product_id?: string;
+    product_id: string;
     total_amount: number;
     currency?: string;
     status?: OrderStatus;

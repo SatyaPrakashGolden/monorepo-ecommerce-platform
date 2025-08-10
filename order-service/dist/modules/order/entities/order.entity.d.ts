@@ -14,6 +14,7 @@ export declare class Order {
     razorpay_order_id?: string;
     receipt?: string;
     razorpay_created_at?: number;
+    payment_id?: number;
     created_at: Date;
     updated_at: Date;
 }

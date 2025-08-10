@@ -14,6 +14,7 @@ const payment_controller_1 = require("./payment.controller");
 const kafka_module_1 = require("../../kafka/kafka.module");
 const payment_entity_1 = require("./entities/payment.entity");
 const auth_module_1 = require("../../auth/auth.module");
+const shared_module_1 = require("../../shared/shared.module");
 let PaymentModule = class PaymentModule {
 };
 exports.PaymentModule = PaymentModule;
@@ -22,7 +23,8 @@ exports.PaymentModule = PaymentModule = __decorate([
         imports: [
             typeorm_1.TypeOrmModule.forFeature([payment_entity_1.Payment]),
             kafka_module_1.KafkaModule,
-            auth_module_1.AuthModule
+            auth_module_1.AuthModule,
+            shared_module_1.SharedModule
         ],
         providers: [payment_service_1.PaymentService],
         controllers: [payment_controller_1.PaymentController],
