@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
@@ -30,6 +31,9 @@ interface OrderResponse {
     id: string;
     amount: number;
     currency: string;
+    receipt: string;
+    status: string;
+    sagaId: string;
   };
 }
 
@@ -63,7 +67,9 @@ export default function PaymentPage() {
 
   // Create axios instance with auth interceptor
   const createAxiosInstance = () => {
-    const instance = axios.create();
+    const instance = axios.create({
+      baseURL: 'http://localhost:2004/api',
+    });
     
     instance.interceptors.request.use((config) => {
       const token = getAccessToken();
@@ -159,16 +165,15 @@ export default function PaymentPage() {
       }
 
       // Create order with required fields
-      // Generate a product_id from cart items (you might want to adjust this logic)
       const productIds = cartItems.map(item => item.productId).join(',');
-      
+
       const { data }: { data: OrderResponse } = await axiosInstance.post(
-        `http://localhost:2004/api/payment/order`,
+        '/payment/order',
         { 
-          amount: total, // Send original amount, not in paise
+          amount: total,
           currency: 'INR',
-          user_id: user.id, // Add required user_id
-          product_id: productIds // Add required product_id (composite of all products)
+          user_id: user.id,
+          product_id: productIds,
         },
         { timeout: 10000 }
       );
@@ -184,20 +189,19 @@ export default function PaymentPage() {
       form.method = 'POST';
       form.action = 'https://api.razorpay.com/v1/checkout/embedded';
 
-      // Add form fields
       const fields = {
         key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_StrkvgR0IMUtoF',
-        amount: data.order.amount.toString(),
-        currency: data.order.currency,
-        order_id: data.order.id,
+        amount: (orderData.amount * 100).toString(), // Convert to paise as expected by Razorpay
+        currency: orderData.currency,
+        order_id: orderData.id,
         name: 'Delente Technologies Pvt. Ltd.',
-        description: 'Payment for Cart Items',
-        prefill_name: user.emailId.split('@')[0] || 'Customer', // Use user data
-        prefill_email: user.emailId, // Use user email
+        description: `Payment for Order ${orderData.id}`,
+        prefill_name: user.emailId.split('@')[0] || 'Customer',
+        prefill_email: user.emailId,
         notes_address: 'M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002',
         theme_color: '#1E40AF',
-        callback_url: `http://localhost:2004/api/payment/callback`, // Fixed port to match your API
-        cancel_url: `${window.location.origin}/payment/cancel`,
+        callback_url: `http://localhost:2004/api/payment/callback?saga_id=${orderData.sagaId}`,
+        cancel_url: `${window.location.origin}/payment/cancel?saga_id=${orderData.sagaId}`,
       };
 
       Object.entries(fields).forEach(([key, value]) => {
@@ -211,10 +215,8 @@ export default function PaymentPage() {
       document.body.appendChild(form);
       form.submit();
 
-      // Clear local storage after successful payment initiation
-      localStorage.removeItem('checkoutData');
+      // Note: Do not clear checkoutData here; clear it only on successful payment
     } catch (err: any) {
-      // Release inventory for all cart items on error
       try {
         for (const item of cartItems) {
           await axiosInstance.post(
@@ -230,10 +232,9 @@ export default function PaymentPage() {
         console.error('Failed to release inventory:', releaseErr);
       }
 
-      // Log payment failure if order was created
       if (orderData) {
         try {
-          await axiosInstance.post('http://localhost:2004/api/payment/failure', {
+          await axiosInstance.post('/payment/failure', {
             id: orderData.id,
             paymentId: null,
             errorCode: err.response?.status?.toString() || 'UNKNOWN_ERROR',
@@ -241,13 +242,13 @@ export default function PaymentPage() {
             errorReason: 'ORDER_CREATION_FAILED',
             type: 'frontend_error',
             userId: user.id,
+            sagaId: orderData.sagaId,
           });
         } catch (logErr) {
           console.error('Failed to log payment failure:', logErr);
         }
       }
 
-      // Handle authentication errors
       if (err.response?.status === 401) {
         setError('Authentication failed. Please login again.');
         // Optionally redirect to login page
@@ -289,12 +290,10 @@ export default function PaymentPage() {
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl">
         <h1 className="text-2xl font-bold mb-6 text-center">Delente Technologies Payment</h1>
 
-        {/* User Info */}
         <div className="mb-4 text-sm text-gray-600">
           <p>Logged in as: {user.emailId}</p>
         </div>
 
-        {/* Order Summary */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
           <div className="space-y-4">
@@ -332,7 +331,6 @@ export default function PaymentPage() {
           </div>
         </div>
 
-        {/* Payment Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <button

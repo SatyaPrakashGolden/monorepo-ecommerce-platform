@@ -1,7 +1,4 @@
 {
-  "/payment/page": "app/payment/page.js",
-  "/cart/page": "app/cart/page.js",
-  "/payment/success/page": "app/payment/success/page.js",
-  "/page": "app/page.js",
-  "/payment/failure/page": "app/payment/failure/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js"
 }

@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import { useSearchParams } from 'next/navigation';
@@ -25,10 +27,11 @@ interface CheckoutData {
 
 export default function PaymentCancelPage() {
   const searchParams = useSearchParams();
+  const error = searchParams.get('error');
+  const sagaId = searchParams.get('saga_id');
   const [isProcessing, setIsProcessing] = useState(true);
   const [releaseStatus, setReleaseStatus] = useState<'processing' | 'success' | 'error'>('processing');
 
-  // Get access token from localStorage
   const getAccessToken = (): string | null => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('accessToken');
@@ -36,9 +39,10 @@ export default function PaymentCancelPage() {
     return null;
   };
 
-  // Create axios instance with auth interceptor
   const createAxiosInstance = () => {
-    const instance = axios.create();
+    const instance = axios.create({
+      baseURL: 'http://localhost:2004/api',
+    });
     
     instance.interceptors.request.use((config) => {
       const token = getAccessToken();
@@ -52,17 +56,14 @@ export default function PaymentCancelPage() {
   };
 
   useEffect(() => {
-    // Release inventory when payment is cancelled
     const releaseInventory = async () => {
       try {
-        // Get checkout data from localStorage
         const checkoutDataStr = localStorage.getItem('checkoutData');
         
         if (checkoutDataStr) {
           const checkoutData: CheckoutData = JSON.parse(checkoutDataStr);
           const axiosInstance = createAxiosInstance();
 
-          // Release inventory for all cart items
           for (const item of checkoutData.cartItems) {
             try {
               await axiosInstance.post(
@@ -76,6 +77,7 @@ export default function PaymentCancelPage() {
               console.log(`Inventory released for product: ${item.productId}, quantity: ${item.quantity}`);
             } catch (itemError) {
               console.error(`Failed to release inventory for product ${item.productId}:`, itemError);
+              setReleaseStatus('error');
             }
           }
 
@@ -83,7 +85,7 @@ export default function PaymentCancelPage() {
           console.log('All inventory released due to payment cancellation');
         } else {
           console.warn('No checkout data found to release inventory');
-          setReleaseStatus('success'); // No inventory to release
+          setReleaseStatus('success');
         }
       } catch (error) {
         console.error('Failed to release inventory:', error);
@@ -94,16 +96,13 @@ export default function PaymentCancelPage() {
     };
 
     const cleanupAndRelease = async () => {
-      // Release inventory first
       await releaseInventory();
 
-      // Clean up localStorage items
       const keysToRemove = [
         'prefill_data_v1',
         'rzp_device_id',
         'truecaller_user_metric',
         'userConsent',
-        'checkoutData', // Clear checkout data since payment was cancelled
       ];
       
       keysToRemove.forEach((key) => {
@@ -145,7 +144,6 @@ export default function PaymentCancelPage() {
           <p className="text-gray-600">Your payment has been cancelled. No charges were made to your account.</p>
         </div>
 
-        {/* Status Information */}
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <div className="flex items-center justify-center mb-2">
             {releaseStatus === 'success' ? (
@@ -176,15 +174,21 @@ export default function PaymentCancelPage() {
           </p>
         </div>
 
-        {/* Cancellation Details */}
-        {searchParams.get('error') && (
+        {error && (
           <div className="bg-red-50 p-4 rounded-lg mb-6">
             <h3 className="text-sm font-semibold text-red-800 mb-1">Cancellation Reason:</h3>
-            <p className="text-sm text-red-700">{decodeURIComponent(searchParams.get('error') || '')}</p>
+            <p className="text-sm text-red-700">{decodeURIComponent(error)}</p>
           </div>
         )}
 
-        {/* Action Buttons */}
+        {sagaId && (
+          <div className="bg-gray-50 p-4 rounded-lg mb-6">
+            <h3 className="text-sm font-semibold text-gray-800 mb-1">Transaction Reference:</h3>
+            <p className="text-sm text-gray-600">Saga ID: {sagaId}</p>
+            <p className="text-xs text-gray-500 mt-1">Please provide this ID if you contact support.</p>
+          </div>
+        )}
+
         <div className="space-y-3">
           <Link
             href="/cart"
@@ -208,7 +212,6 @@ export default function PaymentCancelPage() {
           </Link>
         </div>
 
-        {/* Help Section */}
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-blue-700 font-medium mb-1">Need Help?</p>
           <p className="text-xs text-blue-600">
@@ -216,7 +219,6 @@ export default function PaymentCancelPage() {
           </p>
         </div>
 
-        {/* Company Info */}
         <p className="mt-6 text-xs text-gray-500">
           Delente Technologies Pvt. Ltd.<br />
           M3M Cosmopolitan, Sector 66, Gurugram, Haryana 122002<br />

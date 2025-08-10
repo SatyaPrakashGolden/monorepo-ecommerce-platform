@@ -12,6 +12,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const order_module_1 = require("./modules/order/order.module");
 const kafka_module_1 = require("./kafka/kafka.module");
 const database_config_1 = require("./config/database.config");
+const shared_module_1 = require("./shared/shared.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -20,7 +21,8 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             typeorm_1.TypeOrmModule.forRoot(database_config_1.typeOrmConfig),
             order_module_1.OrderModule,
-            kafka_module_1.KafkaModule
+            kafka_module_1.KafkaModule,
+            shared_module_1.SharedModule
         ],
     })
 ], AppModule);

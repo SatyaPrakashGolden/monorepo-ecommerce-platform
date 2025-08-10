@@ -1,3 +1,4 @@
+// payment/entities/payment.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -19,9 +20,9 @@ export class Payment {
 
   @Column({ type: 'varchar', default: 'payment' })
   entity: string;
+
   @Column({ type: 'decimal', nullable: true })
   amount?: number;
-
 
   @Column({ type: 'varchar', length: 10 })
   currency: string;
@@ -31,7 +32,6 @@ export class Payment {
 
   @Column({ type: 'int', nullable: true })
   user_id?: number;
-
 
   @Column({ type: 'varchar', length: 50, nullable: true })
   invoice_id?: string;
