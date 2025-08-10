@@ -12,6 +12,7 @@ const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
 const payment_module_1 = require("./modules/payment/payment.module");
 const database_config_1 = require("./config/database.config");
+const shared_module_1 = require("./shared/shared.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -24,6 +25,7 @@ exports.AppModule = AppModule = __decorate([
             }),
             typeorm_1.TypeOrmModule.forRoot(database_config_1.typeOrmConfig),
             payment_module_1.PaymentModule,
+            shared_module_1.SharedModule
         ],
     })
 ], AppModule);

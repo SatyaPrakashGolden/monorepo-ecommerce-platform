@@ -1,3 +1,4 @@
+// order/entities/order.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -9,8 +10,8 @@ import {
 export enum OrderStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
-  FAILED = 'failed', // Added failed status
-  CANCELLED = 'cancelled', // Added cancelled status
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
 }
 
 @Entity('orders')
@@ -21,11 +22,11 @@ export class Order {
   @Column()
   user_id: number;
 
-  @Column({ type: 'varchar', length: 255, nullable: true }) // Increased length for multiple product IDs
+  @Column({ type: 'varchar', length: 255, nullable: true })
   product_id?: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  total_amount: number; // Changed from string to number
+  total_amount: number;
 
   @Column({ type: 'varchar', length: 10, default: 'INR' })
   currency: string;
@@ -45,6 +46,9 @@ export class Order {
 
   @Column({ type: 'bigint', nullable: true })
   razorpay_created_at?: number;
+
+  @Column({ type: 'int', nullable: true })
+  payment_id?: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;

@@ -4,7 +4,7 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import * as dotenv from 'dotenv';
 
 import { Payment } from '../modules/payment/entities/payment.entity';
-
+import {SagaState} from '../shared/entities/saga-state.entity';
 dotenv.config();
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
@@ -15,7 +15,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   password: process.env.DB_PASSWORD || 'Satya@123',
   database: process.env.DB_NAME || 'fashion_store',
   entities: [
-    Payment,
+    Payment,SagaState
   ],
   synchronize: true, // Use false in production and manage migrations
 };

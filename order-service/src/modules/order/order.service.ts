@@ -1,3 +1,4 @@
+// order/order.service.ts
 import {
   Injectable,
   Inject,
@@ -11,21 +12,26 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { Order } from './entities/order.entity';
 import { ClientKafka } from '@nestjs/microservices';
 import { OrderStatus } from './entities/order.entity';
-import { EventPattern } from '@nestjs/microservices';
+import { SagaOrchestratorService } from '../../shared/services/saga-orchestrator.service';
+import { SagaStatus } from '../../shared/entities/saga-state.entity';
+import { SagaLogger } from '../../shared/utils/saga-logger.util';
+import { v4 as uuidv4 } from 'uuid';
+
 
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger(OrderService.name);
+  private readonly sagaLogger = SagaLogger.getInstance();
 
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
     @Inject('KAFKA_SERVICE') private readonly kafkaClient: ClientKafka,
+    private readonly sagaOrchestrator: SagaOrchestratorService,
   ) {}
 
   async createOrder(createOrderDto: CreateOrderDto): Promise<Order> {
     try {
-      // Ensure total_amount is properly converted
       const orderData = {
         ...createOrderDto,
         total_amount: Number(createOrderDto.total_amount),
@@ -66,11 +72,19 @@ export class OrderService {
     }
   }
 
-  async markOrderAsPaid(razorpayOrderId: string): Promise<Order> {
+  async markOrderAsPaid(sagaId: string, razorpayOrderId: string, paymentId: number): Promise<Order> {
     const order = await this.findOrderByRazorpayId(razorpayOrderId);
     
     if (!order) {
       this.logger.warn(`Order with Razorpay Order ID ${razorpayOrderId} not found`);
+      
+      await this.sagaOrchestrator.updateSagaStatus(
+        sagaId, 
+        SagaStatus.FAILED, 
+        null, 
+        'Order not found for payment completion'
+      );
+      
       throw new NotFoundException('Order not found');
     }
 
@@ -81,31 +95,68 @@ export class OrderService {
 
     try {
       order.status = OrderStatus.SUCCESS;
+      order.payment_id = paymentId;
       const updatedOrder = await this.orderRepository.save(order);
       
       this.logger.log(`✅ Order marked as success: ${updatedOrder.id}`);
       
-      // Emit event for successful payment
-      await this.kafkaClient.emit('order-payment-success', {
-        orderId: updatedOrder.id,
-        userId: updatedOrder.user_id,
-        productId: updatedOrder.product_id,
-        amount: updatedOrder.total_amount,
-        razorpayOrderId: updatedOrder.razorpay_order_id,
+      // Update saga to completed status
+      await this.sagaOrchestrator.updateSagaStatus(
+        sagaId, 
+        SagaStatus.COMPLETED,
+        {
+          orderId: updatedOrder.id,
+          finalStatus: OrderStatus.SUCCESS,
+        }
+      );
+
+      // Emit order completed event
+      await this.kafkaClient.emit('order-completed', {
+        sagaId,
+        timestamp: Date.now(),
+        correlationId: uuidv4(),
+        version: 1,
+        type: 'ORDER_COMPLETED',
+        payload: {
+          orderId: updatedOrder.id,
+          razorpayOrderId: updatedOrder.razorpay_order_id,
+          paymentId: paymentId,
+          userId: updatedOrder.user_id,
+          amount: updatedOrder.total_amount,
+          status: 'SUCCESS' as const,
+        },
       }).toPromise();
 
+      this.sagaLogger.logSagaComplete(sagaId, 'completed');
       return updatedOrder;
     } catch (error) {
+      this.sagaLogger.logSagaError(sagaId, error);
       this.logger.error(`Failed to mark order as paid: ${razorpayOrderId}`, error.stack);
+      
+      await this.sagaOrchestrator.updateSagaStatus(
+        sagaId, 
+        SagaStatus.FAILED, 
+        null, 
+        'Failed to update order status to paid'
+      );
+      
       throw new BadRequestException('Could not update order status');
     }
   }
 
-  async markOrderAsFailed(razorpayOrderId: string, reason?: string): Promise<Order> {
+  async markOrderAsFailed(sagaId: string, razorpayOrderId: string, reason?: string): Promise<Order> {
     const order = await this.findOrderByRazorpayId(razorpayOrderId);
     
     if (!order) {
       this.logger.warn(`Order with Razorpay Order ID ${razorpayOrderId} not found`);
+      
+      await this.sagaOrchestrator.updateSagaStatus(
+        sagaId, 
+        SagaStatus.FAILED, 
+        null, 
+        'Order not found for failure marking'
+      );
+      
       throw new NotFoundException('Order not found');
     }
 
@@ -115,24 +166,52 @@ export class OrderService {
       
       this.logger.log(`❌ Order marked as failed: ${updatedOrder.id}, Reason: ${reason || 'Unknown'}`);
       
-      // Emit event for failed payment
-      await this.kafkaClient.emit('order-payment-failed', {
-        orderId: updatedOrder.id,
-        userId: updatedOrder.user_id,
-        productId: updatedOrder.product_id,
-        amount: updatedOrder.total_amount,
-        razorpayOrderId: updatedOrder.razorpay_order_id,
-        reason: reason || 'Payment failed',
+      // Update saga to failed status
+      await this.sagaOrchestrator.updateSagaStatus(
+        sagaId, 
+        SagaStatus.FAILED,
+        {
+          orderId: updatedOrder.id,
+          finalStatus: OrderStatus.FAILED,
+          failureReason: reason,
+        },
+        reason
+      );
+
+      // Emit order failed event
+      await this.kafkaClient.emit('order-failed', {
+        sagaId,
+        timestamp: Date.now(),
+        correlationId: uuidv4(),
+        version: 1,
+        type: 'ORDER_FAILED',
+        payload: {
+          orderId: updatedOrder.id,
+          razorpayOrderId: updatedOrder.razorpay_order_id,
+          userId: updatedOrder.user_id,
+          amount: updatedOrder.total_amount,
+          reason: reason || 'Payment failed',
+          status: 'FAILED' as const,
+        },
       }).toPromise();
 
       return updatedOrder;
     } catch (error) {
+      this.sagaLogger.logSagaError(sagaId, error);
       this.logger.error(`Failed to mark order as failed: ${razorpayOrderId}`, error.stack);
+      
+      await this.sagaOrchestrator.updateSagaStatus(
+        sagaId, 
+        SagaStatus.FAILED, 
+        null, 
+        'Failed to update order status to failed'
+      );
+      
       throw new BadRequestException('Could not update order status');
     }
   }
 
-  async markOrderAsCancelled(razorpayOrderId: string, reason?: string): Promise<Order> {
+  async markOrderAsCancelled(sagaId: string, razorpayOrderId: string, reason?: string): Promise<Order> {
     const order = await this.findOrderByRazorpayId(razorpayOrderId);
     
     if (!order) {
@@ -148,18 +227,120 @@ export class OrderService {
       
       // Emit event for cancelled payment
       await this.kafkaClient.emit('order-payment-cancelled', {
-        orderId: updatedOrder.id,
-        userId: updatedOrder.user_id,
-        productId: updatedOrder.product_id,
-        amount: updatedOrder.total_amount,
-        razorpayOrderId: updatedOrder.razorpay_order_id,
-        reason: reason || 'Order cancelled',
+        sagaId,
+        timestamp: Date.now(),
+        correlationId: uuidv4(),
+        version: 1,
+        type: 'ORDER_CANCELLATION_REQUESTED',
+        payload: {
+          orderId: updatedOrder.id,
+          userId: updatedOrder.user_id,
+          productId: updatedOrder.product_id,
+          amount: updatedOrder.total_amount,
+          razorpayOrderId: updatedOrder.razorpay_order_id,
+          reason: reason || 'Order cancelled',
+        },
       }).toPromise();
 
       return updatedOrder;
     } catch (error) {
+      this.sagaLogger.logSagaError(sagaId, error);
       this.logger.error(`Failed to mark order as cancelled: ${razorpayOrderId}`, error.stack);
       throw new BadRequestException('Could not update order status');
+    }
+  }
+
+  async handleOrderCreated(event: any): Promise<void> {
+    const { sagaId, payload } = event;
+    
+    try {
+      this.logger.log(`Handling order creation for saga: ${sagaId}`);
+      
+      const createOrderDto: CreateOrderDto = {
+        user_id: payload.userId,
+        product_id: payload.productId,
+        total_amount: payload.amount,
+        currency: payload.currency || 'INR',
+        status: OrderStatus.PENDING,
+        razorpay_order_id: payload.razorpayOrderId,
+        receipt: payload.receipt,
+        razorpay_created_at: Date.now(),
+      };
+
+      const order = await this.createOrder(createOrderDto);
+      
+      // Update saga with created order information
+      await this.sagaOrchestrator.updateSagaStatus(
+        sagaId, 
+        SagaStatus.ORDER_CREATED, 
+        {
+          orderId: order.id,
+          razorpayOrderId: order.razorpay_order_id,
+        }
+      );
+      
+      this.logger.log(`Order created for saga ${sagaId}: ${order.id}`);
+    } catch (error) {
+      this.sagaLogger.logSagaError(sagaId, error);
+      this.logger.error(`Failed to handle order creation for saga ${sagaId}:`, error);
+      
+      await this.sagaOrchestrator.updateSagaStatus(
+        sagaId, 
+        SagaStatus.FAILED, 
+        null, 
+        `Order creation failed: ${error.message}`
+      );
+    }
+  }
+
+  async handlePaymentVerified(event: any): Promise<void> {
+    const { sagaId, payload } = event;
+    
+    try {
+      this.logger.log(`Handling payment verification for saga: ${sagaId}`);
+      await this.markOrderAsPaid(sagaId, payload.razorpayOrderId, payload.paymentId);
+    } catch (error) {
+      this.sagaLogger.logSagaError(sagaId, error);
+      this.logger.error(`Failed to handle payment verification for saga ${sagaId}:`, error);
+      
+      // Try to compensate by requesting payment reversal
+      await this.kafkaClient.emit('payment-reversal-requested', {
+        sagaId,
+        timestamp: Date.now(),
+        correlationId: uuidv4(),
+        version: 1,
+        type: 'PAYMENT_REVERSAL_REQUESTED',
+        payload: {
+          razorpayPaymentId: payload.razorpayPaymentId,
+          razorpayOrderId: payload.razorpayOrderId,
+          amount: payload.amount,
+          reason: 'Order completion failed',
+        },
+      }).toPromise();
+    }
+  }
+
+  async handlePaymentFailed(event: any): Promise<void> {
+    const { sagaId, payload } = event;
+    
+    try {
+      this.logger.log(`Handling payment failure for saga: ${sagaId}`);
+      await this.markOrderAsFailed(sagaId, payload.razorpayOrderId, payload.errorDescription);
+    } catch (error) {
+      this.sagaLogger.logSagaError(sagaId, error);
+      this.logger.error(`Failed to handle payment failure for saga ${sagaId}:`, error);
+    }
+  }
+
+  async handleOrderCancellationRequest(event: any): Promise<void> {
+    const { sagaId, payload } = event;
+    
+    try {
+      this.logger.log(`Handling order cancellation request for saga: ${sagaId}`);
+      await this.markOrderAsCancelled(sagaId, payload.razorpayOrderId, payload.reason);
+    } catch (error) {
+      this.sagaLogger.logSagaError(sagaId, error);
+      this.logger.error(`Failed to handle order cancellation for saga ${sagaId}:`, error);
     }
   }
 }

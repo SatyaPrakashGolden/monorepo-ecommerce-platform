@@ -20,6 +20,7 @@ const create_order_dto_1 = require("./dto/create-order.dto");
 const payment_callback_dto_1 = require("./dto/payment-callback.dto");
 const common_2 = require("@nestjs/common");
 const user_middleware_1 = require("../../auth/user.middleware");
+const microservices_1 = require("@nestjs/microservices");
 let PaymentController = PaymentController_1 = class PaymentController {
     paymentService;
     logger = new common_2.Logger(PaymentController_1.name);
@@ -70,7 +71,7 @@ let PaymentController = PaymentController_1 = class PaymentController {
                     user_id: user_id,
                 });
                 const failureRedirectUrl = process.env.FAILURE_REDIRECT_URL || 'http://localhost:3000/payment/failure';
-                return res.redirect(`${failureRedirectUrl}?error=${encodeURIComponent(result.error_description || 'Payment failed')}&user_id=${user_id}&payment_id=${payment_id}`);
+                return res.redirect(`${failureRedirectUrl}?error=${encodeURIComponent(result.error_description || 'Payment failed')}&user_id=${user_id}&payment_id=${payment_id}&saga_id=${result.sagaId}`);
             }
             else {
                 const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = body;
@@ -85,7 +86,7 @@ let PaymentController = PaymentController_1 = class PaymentController {
                 });
                 this.logger.log(`Payment callback processed successfully: ${JSON.stringify(result)}`);
                 const successRedirectUrl = process.env.SUCCESS_REDIRECT_URL || 'http://localhost:3000/payment/success';
-                return res.redirect(`${successRedirectUrl}?payment_id=${result.payment_id}&order_id=${result.order_id}`);
+                return res.redirect(`${successRedirectUrl}?payment_id=${result.payment_id}&order_id=${result.order_id}&saga_id=${result.sagaId}`);
             }
         }
         catch (error) {
@@ -109,6 +110,47 @@ let PaymentController = PaymentController_1 = class PaymentController {
             return res.redirect(`${failureRedirectUrl}?error=${encodeURIComponent(error.message || 'callback_error')}&user_id=${userId}&order_id=${orderId}`);
         }
     }
+    async handleOrderCreationStarted(data) {
+        try {
+            this.logger.log(`Received order-creation-started event: ${JSON.stringify(data)}`);
+        }
+        catch (error) {
+            this.logger.error('Failed to handle order-creation-started event', error.stack);
+        }
+    }
+    async handleOrderCreated(data) {
+        try {
+            this.logger.log(`Received order-created event: ${JSON.stringify(data)}`);
+        }
+        catch (error) {
+            this.logger.error('Failed to handle order-created event', error.stack);
+        }
+    }
+    async handlePaymentReversalRequest(data) {
+        try {
+            this.logger.log(`Received payment-reversal-requested event: ${JSON.stringify(data)}`);
+            await this.paymentService.handlePaymentReversalRequest(data);
+        }
+        catch (error) {
+            this.logger.error('Failed to handle payment-reversal-requested event', error.stack);
+        }
+    }
+    async handleOrderCompleted(data) {
+        try {
+            this.logger.log(`Received order-completed event: ${JSON.stringify(data)}`);
+        }
+        catch (error) {
+            this.logger.error('Failed to handle order-completed event', error.stack);
+        }
+    }
+    async handleOrderFailed(data) {
+        try {
+            this.logger.log(`Received order-failed event: ${JSON.stringify(data)}`);
+        }
+        catch (error) {
+            this.logger.error('Failed to handle order-failed event', error.stack);
+        }
+    }
 };
 exports.PaymentController = PaymentController;
 __decorate([
@@ -128,6 +170,36 @@ __decorate([
     __metadata("design:paramtypes", [payment_callback_dto_1.PaymentCallbackDto, Object]),
     __metadata("design:returntype", Promise)
 ], PaymentController.prototype, "paymentCallback", null);
+__decorate([
+    (0, microservices_1.EventPattern)('order-creation-started'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PaymentController.prototype, "handleOrderCreationStarted", null);
+__decorate([
+    (0, microservices_1.EventPattern)('order-created'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PaymentController.prototype, "handleOrderCreated", null);
+__decorate([
+    (0, microservices_1.EventPattern)('payment-reversal-requested'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PaymentController.prototype, "handlePaymentReversalRequest", null);
+__decorate([
+    (0, microservices_1.EventPattern)('order-completed'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PaymentController.prototype, "handleOrderCompleted", null);
+__decorate([
+    (0, microservices_1.EventPattern)('order-failed'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PaymentController.prototype, "handleOrderFailed", null);
 exports.PaymentController = PaymentController = PaymentController_1 = __decorate([
     (0, common_1.Controller)('payment'),
     __metadata("design:paramtypes", [payment_service_1.PaymentService])

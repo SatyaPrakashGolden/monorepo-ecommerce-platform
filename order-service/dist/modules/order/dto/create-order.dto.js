@@ -17,7 +17,7 @@ class CreateOrderDto {
     product_id;
     total_amount;
     currency = 'INR';
-    status = order_entity_1.OrderStatus.PENDING;
+    status;
     razorpay_order_id;
     receipt;
     razorpay_created_at;
@@ -25,41 +25,33 @@ class CreateOrderDto {
 exports.CreateOrderDto = CreateOrderDto;
 __decorate([
     (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsPositive)(),
     __metadata("design:type", Number)
 ], CreateOrderDto.prototype, "user_id", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(255),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "product_id", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsPositive)(),
     __metadata("design:type", Number)
 ], CreateOrderDto.prototype, "total_amount", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(10),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "currency", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(order_entity_1.OrderStatus),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "status", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(50),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "razorpay_order_id", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(50),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "receipt", void 0);
 __decorate([

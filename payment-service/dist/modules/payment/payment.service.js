@@ -20,15 +20,22 @@ const microservices_1 = require("@nestjs/microservices");
 const payment_entity_1 = require("./entities/payment.entity");
 const typeorm_1 = require("typeorm");
 const typeorm_2 = require("@nestjs/typeorm");
+const saga_orchestrator_service_1 = require("../../shared/services/saga-orchestrator.service");
+const saga_state_entity_1 = require("../../shared/entities/saga-state.entity");
+const saga_logger_util_1 = require("../../shared/utils/saga-logger.util");
+const uuid_1 = require("uuid");
 const Razorpay = require('razorpay');
 let PaymentService = PaymentService_1 = class PaymentService {
     kafkaClient;
     paymentRepository;
+    sagaOrchestrator;
     razorpay;
     logger = new common_1.Logger(PaymentService_1.name);
-    constructor(kafkaClient, paymentRepository) {
+    sagaLogger = saga_logger_util_1.SagaLogger.getInstance();
+    constructor(kafkaClient, paymentRepository, sagaOrchestrator) {
         this.kafkaClient = kafkaClient;
         this.paymentRepository = paymentRepository;
+        this.sagaOrchestrator = sagaOrchestrator;
         const keyId = process.env.RAZORPAY_KEY_ID;
         const keySecret = process.env.RAZORPAY_KEY_SECRET;
         if (!keyId || !keySecret) {
@@ -47,6 +54,12 @@ let PaymentService = PaymentService_1 = class PaymentService {
         if (!user_id || !product_id) {
             throw new common_1.BadRequestException('Missing required fields: user_id or product_id');
         }
+        const sagaId = await this.sagaOrchestrator.startOrderPaymentSaga({
+            userId: user_id,
+            productId: product_id,
+            amount,
+            currency,
+        });
         const orderOptions = {
             amount: Math.round(amount * 100),
             currency,
@@ -55,29 +68,54 @@ let PaymentService = PaymentService_1 = class PaymentService {
         try {
             const order = await this.razorpay.orders.create(orderOptions);
             this.logger.log(`Razorpay Order created successfully. ID: ${order.id}`);
-            const orderEventPayload = {
-                user_id,
-                product_id,
-                total_amount: (order.amount / 100).toFixed(2),
-                currency: order.currency || 'INR',
-                status: 'pending',
-                razorpay_order_id: order.id || null,
-                receipt: order.receipt || null,
-                razorpay_created_at: order.created_at || null,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            };
-            await this.kafkaClient.emit('payment-order-created', orderEventPayload).toPromise();
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.ORDER_CREATED, {
+                razorpayOrderId: order.id,
+                receipt: order.receipt,
+                razorpayCreatedAt: order.created_at,
+            });
+            await this.kafkaClient.emit('order-created', {
+                sagaId,
+                timestamp: Date.now(),
+                correlationId: (0, uuid_1.v4)(),
+                version: 1,
+                type: 'ORDER_CREATED',
+                payload: {
+                    orderId: 0,
+                    razorpayOrderId: order.id,
+                    userId: user_id,
+                    productId: product_id,
+                    amount: order.amount / 100,
+                    currency: order.currency,
+                    receipt: order.receipt,
+                },
+            }).toPromise();
             return {
                 id: order.id,
                 amount: order.amount / 100,
                 currency: order.currency,
                 receipt: order.receipt,
                 status: order.status,
+                sagaId,
             };
         }
         catch (error) {
+            this.sagaLogger.logSagaError(sagaId, error);
             this.logger.error(`Failed to create Razorpay order`, error.stack);
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, null, 'Failed to create Razorpay order');
+            await this.kafkaClient.emit('order-creation-failed', {
+                sagaId,
+                timestamp: Date.now(),
+                correlationId: (0, uuid_1.v4)(),
+                version: 1,
+                type: 'ORDER_CREATION_FAILED',
+                payload: {
+                    userId: user_id,
+                    productId: product_id,
+                    amount,
+                    reason: 'Failed to create Razorpay order',
+                    error: error.message,
+                },
+            }).toPromise();
             throw new common_1.InternalServerErrorException('Something went wrong while creating the order');
         }
     }
@@ -86,12 +124,29 @@ let PaymentService = PaymentService_1 = class PaymentService {
         if (!razorpay_payment_id || !razorpay_order_id) {
             throw new common_1.BadRequestException('Missing required payment or order ID');
         }
-        this.logger.log(`Payment callback received: payment_id=${razorpay_payment_id}, order_id=${razorpay_order_id}`);
-        const key_secret = process.env.RAZORPAY_KEY_SECRET;
-        if (!key_secret) {
-            this.logger.error('Razorpay key secret not configured');
-            throw new common_1.InternalServerErrorException('Razorpay key secret not configured');
+        const sagaState = await this.sagaOrchestrator.findSagaByRazorpayOrderId(razorpay_order_id);
+        if (!sagaState) {
+            this.logger.error(`No saga found for order: ${razorpay_order_id}`);
+            throw new common_1.BadRequestException('No associated transaction found');
         }
+        await this.sagaOrchestrator.updateSagaStatus(sagaState.saga_id, saga_state_entity_1.SagaStatus.PAYMENT_PROCESSING, {
+            razorpayPaymentId: razorpay_payment_id,
+            razorpayOrderId: razorpay_order_id,
+        });
+        await this.kafkaClient.emit('payment-processing-started', {
+            sagaId: sagaState.saga_id,
+            timestamp: Date.now(),
+            correlationId: sagaState.correlation_id,
+            version: 1,
+            type: 'PAYMENT_PROCESSING_STARTED',
+            payload: {
+                razorpayPaymentId: razorpay_payment_id,
+                razorpayOrderId: razorpay_order_id,
+                razorpaySignature: razorpay_signature,
+                isFailedPayment,
+            },
+        }).toPromise();
+        this.logger.log(`Payment callback received: payment_id=${razorpay_payment_id}, order_id=${razorpay_order_id}`);
         const existingPayment = await this.paymentRepository.findOne({
             where: { payment_id: razorpay_payment_id }
         });
@@ -105,91 +160,129 @@ let PaymentService = PaymentService_1 = class PaymentService {
             };
         }
         if (isFailedPayment) {
-            this.logger.warn(`Processing failed payment: payment_id=${razorpay_payment_id}, order_id=${razorpay_order_id}`);
-            let payment;
-            try {
-                payment = await this.razorpay.payments.fetch(razorpay_payment_id);
-                this.logger.log(`Fetched failed payment details: payment_id=${razorpay_payment_id}`);
-            }
-            catch (error) {
-                this.logger.error(`Failed to fetch failed payment details: ${error.message}`);
-                throw new common_1.InternalServerErrorException('Failed to fetch payment details for failed payment');
-            }
-            const failedPaymentEntity = this.paymentRepository.create({
-                payment_id: payment.id,
-                entity: payment.entity || 'payment',
-                amount: payment.amount / 100,
-                currency: payment.currency || 'INR',
-                status: payment.status,
-                invoice_id: payment.invoice_id,
-                international: payment.international || false,
-                method: payment.method || 'unknown',
-                amount_refunded: payment.amount_refunded || 0,
-                refund_status: payment.refund_status,
-                captured: payment.captured || false,
-                description: payment.description,
-                card_id: payment.card_id,
-                bank: payment.bank,
-                wallet: payment.wallet,
-                vpa: payment.vpa,
-                email: payment.email,
-                contact: payment.contact,
-                fee: payment.fee,
-                tax: payment.tax,
-                error_code: payment.error_code,
-                error_description: payment.error_description,
-                error_source: payment.error_source,
-                error_step: payment.error_step,
-                error_reason: payment.error_reason,
-                bank_transaction_id: payment.acquirer_data?.bank_transaction_id || null,
-                payment_created_at: payment.created_at || 0,
-            });
-            try {
-                await this.paymentRepository.save(failedPaymentEntity);
-                await this.kafkaClient.emit('payment-failed', {
-                    razorpay_order_id: razorpay_order_id,
-                    razorpay_payment_id: payment.id,
-                    status: payment.status,
-                    amount: payment.amount / 100,
-                    error_code: payment.error_code,
-                    error_description: payment.error_description,
-                }).toPromise();
-                return {
-                    success: false,
-                    message: 'Payment failed',
-                    payment_id: payment.id,
-                    order_id: razorpay_order_id,
-                    error_description: payment.error_description || 'Payment was declined',
-                    status: payment.status,
-                };
-            }
-            catch (saveError) {
-                this.logger.error(`Failed to save failed payment: ${saveError.message}`);
-                throw new common_1.InternalServerErrorException('Failed to save payment failure record');
-            }
+            return await this.handleFailedPayment(sagaState.saga_id, razorpay_payment_id, razorpay_order_id);
         }
-        if (razorpay_signature) {
-            const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+        if (!razorpay_signature) {
+            this.logger.error(`Missing razorpay_signature for successful payment: order_id=${razorpay_order_id}`);
+            await this.sagaOrchestrator.updateSagaStatus(sagaState.saga_id, saga_state_entity_1.SagaStatus.FAILED, null, 'Missing Razorpay signature for successful payment');
+            throw new common_1.BadRequestException('Missing Razorpay signature for successful payment');
+        }
+        return await this.handleSuccessfulPayment(sagaState.saga_id, razorpay_payment_id, razorpay_order_id, razorpay_signature);
+    }
+    async handleFailedPayment(sagaId, razorpayPaymentId, razorpayOrderId) {
+        this.logger.warn(`Processing failed payment: payment_id=${razorpayPaymentId}, order_id=${razorpayOrderId}`);
+        let payment;
+        try {
+            payment = await this.razorpay.payments.fetch(razorpayPaymentId);
+            this.logger.log(`Fetched failed payment details: payment_id=${razorpayPaymentId}`);
+        }
+        catch (error) {
+            this.sagaLogger.logSagaError(sagaId, error);
+            this.logger.error(`Failed to fetch failed payment details: ${error.message}`);
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, null, 'Failed to fetch payment details');
+            throw new common_1.InternalServerErrorException('Failed to fetch payment details for failed payment');
+        }
+        const failedPaymentEntity = this.paymentRepository.create({
+            payment_id: payment.id,
+            entity: payment.entity || 'payment',
+            amount: payment.amount / 100,
+            currency: payment.currency || 'INR',
+            status: payment.status,
+            invoice_id: payment.invoice_id,
+            international: payment.international || false,
+            method: payment.method || 'unknown',
+            amount_refunded: payment.amount_refunded || 0,
+            refund_status: payment.refund_status,
+            captured: payment.captured || false,
+            description: payment.description,
+            card_id: payment.card_id,
+            bank: payment.bank,
+            wallet: payment.wallet,
+            vpa: payment.vpa,
+            email: payment.email,
+            contact: payment.contact,
+            fee: payment.fee,
+            tax: payment.tax,
+            error_code: payment.error_code,
+            error_description: payment.error_description,
+            error_source: payment.error_source,
+            error_step: payment.error_step,
+            error_reason: payment.error_reason,
+            bank_transaction_id: payment.acquirer_data?.bank_transaction_id || null,
+            payment_created_at: payment.created_at || 0,
+        });
+        try {
+            await this.paymentRepository.save(failedPaymentEntity);
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, {
+                errorCode: payment.error_code,
+                errorDescription: payment.error_description,
+            }, 'Payment failed');
+            await this.kafkaClient.emit('payment-failed', {
+                sagaId,
+                timestamp: Date.now(),
+                correlationId: (0, uuid_1.v4)(),
+                version: 1,
+                type: 'PAYMENT_FAILED',
+                payload: {
+                    razorpayPaymentId: payment.id,
+                    razorpayOrderId: razorpayOrderId,
+                    amount: payment.amount / 100,
+                    errorCode: payment.error_code,
+                    errorDescription: payment.error_description,
+                    status: payment.status,
+                },
+            }).toPromise();
+            return {
+                success: false,
+                message: 'Payment failed',
+                payment_id: payment.id,
+                order_id: razorpayOrderId,
+                error_description: payment.error_description || 'Payment was declined',
+                status: payment.status,
+                sagaId,
+            };
+        }
+        catch (saveError) {
+            this.sagaLogger.logSagaError(sagaId, saveError);
+            this.logger.error(`Failed to save failed payment: ${saveError.message}`);
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, null, 'Failed to save payment failure record');
+            throw new common_1.InternalServerErrorException('Failed to save payment failure record');
+        }
+    }
+    async handleSuccessfulPayment(sagaId, razorpayPaymentId, razorpayOrderId, razorpaySignature) {
+        const key_secret = process.env.RAZORPAY_KEY_SECRET;
+        if (!key_secret) {
+            this.logger.error('Razorpay key secret not configured');
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, null, 'Razorpay key secret not configured');
+            throw new common_1.InternalServerErrorException('Razorpay key secret not configured');
+        }
+        if (razorpaySignature) {
+            const body = `${razorpayOrderId}|${razorpayPaymentId}`;
             const expectedSignature = crypto.createHmac('sha256', key_secret).update(body).digest('hex');
-            if (expectedSignature !== razorpay_signature) {
-                this.logger.warn(`Invalid Razorpay signature for payment_id=${razorpay_payment_id}`);
+            if (expectedSignature !== razorpaySignature) {
+                this.logger.warn(`Invalid Razorpay signature for payment_id=${razorpayPaymentId}`);
+                await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, null, 'Invalid Razorpay signature');
                 throw new common_1.BadRequestException('Invalid Razorpay signature');
             }
         }
         else {
-            this.logger.warn(`Missing Razorpay signature for order_id=${razorpay_order_id}`);
+            this.logger.warn(`Missing Razorpay signature for order_id=${razorpayOrderId}`);
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, null, 'Missing Razorpay signature');
             throw new common_1.BadRequestException('Missing Razorpay signature');
         }
         let payment;
         try {
-            payment = await this.razorpay.payments.fetch(razorpay_payment_id);
+            payment = await this.razorpay.payments.fetch(razorpayPaymentId);
         }
         catch (error) {
+            this.sagaLogger.logSagaError(sagaId, error);
             this.logger.error(`Failed to fetch payment: ${error.message}`);
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, null, 'Failed to fetch payment details');
             throw new common_1.InternalServerErrorException('Failed to fetch payment details');
         }
         if (payment.status !== 'captured') {
-            this.logger.warn(`Payment not captured: ${razorpay_payment_id}`);
+            this.logger.warn(`Payment not captured: ${razorpayPaymentId}`);
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, null, 'Payment is not captured');
             throw new common_1.BadRequestException('Payment is not captured');
         }
         const paymentEntity = this.paymentRepository.create({
@@ -222,24 +315,80 @@ let PaymentService = PaymentService_1 = class PaymentService {
             payment_created_at: payment.created_at || 0,
         });
         try {
-            await this.paymentRepository.save(paymentEntity);
-            await this.kafkaClient.emit('payment-verified', {
-                razorpay_order_id: razorpay_order_id,
-                razorpay_payment_id: payment.id,
-                status: payment.status,
+            const savedPayment = await this.paymentRepository.save(paymentEntity);
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.PAYMENT_VERIFIED, {
+                paymentId: savedPayment.id,
+                razorpayPaymentId: payment.id,
                 amount: payment.amount / 100,
+                status: payment.status,
+            });
+            await this.kafkaClient.emit('payment-verified', {
+                sagaId,
+                timestamp: Date.now(),
+                correlationId: (0, uuid_1.v4)(),
+                version: 1,
+                type: 'PAYMENT_VERIFIED',
+                payload: {
+                    paymentId: savedPayment.id,
+                    razorpayPaymentId: payment.id,
+                    razorpayOrderId: razorpayOrderId,
+                    amount: payment.amount / 100,
+                    status: payment.status,
+                },
             }).toPromise();
-            this.logger.log(`Payment verified and stored: ${razorpay_payment_id}`);
+            this.logger.log(`Payment verified and stored: ${razorpayPaymentId}`);
             return {
                 success: true,
                 message: 'Payment verified and saved successfully',
                 payment_id: payment.id,
-                order_id: razorpay_order_id,
+                order_id: razorpayOrderId,
+                sagaId,
             };
         }
         catch (saveError) {
+            this.sagaLogger.logSagaError(sagaId, saveError);
             this.logger.error(`Failed to save successful payment: ${saveError.message}`);
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, null, 'Failed to save payment record');
             throw new common_1.InternalServerErrorException('Failed to save payment record');
+        }
+    }
+    async handlePaymentReversalRequest(event) {
+        const { sagaId, payload } = event;
+        const { razorpayPaymentId, amount, reason } = payload;
+        try {
+            this.logger.log(`Processing payment reversal: ${razorpayPaymentId}`);
+            const refund = await this.razorpay.payments.refund(razorpayPaymentId, {
+                amount: Math.round(amount * 100),
+                reason: reason || 'requested_by_customer',
+            });
+            const payment = await this.paymentRepository.findOne({
+                where: { payment_id: razorpayPaymentId },
+            });
+            if (payment) {
+                payment.amount_refunded = refund.amount / 100;
+                payment.refund_status = refund.status;
+                await this.paymentRepository.save(payment);
+            }
+            await this.kafkaClient.emit('payment-reversed', {
+                sagaId,
+                timestamp: Date.now(),
+                correlationId: (0, uuid_1.v4)(),
+                version: 1,
+                type: 'PAYMENT_REVERSED',
+                payload: {
+                    razorpayPaymentId,
+                    razorpayOrderId: payload.razorpayOrderId,
+                    refundId: refund.id,
+                    amount: refund.amount / 100,
+                    status: refund.status,
+                },
+            }).toPromise();
+            this.logger.log(`Payment reversed successfully: ${razorpayPaymentId}`);
+        }
+        catch (error) {
+            this.sagaLogger.logSagaError(sagaId, error);
+            this.logger.error(`Failed to reverse payment ${razorpayPaymentId}:`, error);
+            await this.sagaOrchestrator.updateSagaStatus(sagaId, saga_state_entity_1.SagaStatus.FAILED, null, `Payment reversal failed: ${error.message}`);
         }
     }
 };
@@ -249,6 +398,7 @@ exports.PaymentService = PaymentService = PaymentService_1 = __decorate([
     __param(0, (0, common_1.Inject)('KAFKA_SERVICE')),
     __param(1, (0, typeorm_2.InjectRepository)(payment_entity_1.Payment)),
     __metadata("design:paramtypes", [microservices_1.ClientKafka,
-        typeorm_1.Repository])
+        typeorm_1.Repository,
+        saga_orchestrator_service_1.SagaOrchestratorService])
 ], PaymentService);
 //# sourceMappingURL=payment.service.js.map

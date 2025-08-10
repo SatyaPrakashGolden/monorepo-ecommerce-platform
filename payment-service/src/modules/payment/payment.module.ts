@@ -6,12 +6,15 @@ import { PaymentController } from './payment.controller';
 import { KafkaModule } from '../../kafka/kafka.module';
 import { Payment } from './entities/payment.entity'; 
 import {AuthModule} from '../../auth/auth.module'; 
+import { SharedModule } from '../../shared/shared.module'; // Import the shared module
+
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Payment ]), 
     KafkaModule,
-    AuthModule
+    AuthModule,
+    SharedModule
   ],
   providers: [PaymentService],
   controllers: [PaymentController],

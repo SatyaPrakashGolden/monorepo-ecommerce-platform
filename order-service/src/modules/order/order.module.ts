@@ -6,14 +6,15 @@ import { OrderService } from './order.service';
 import { OrderController } from './order.controller';
 import { Order } from './entities/order.entity';
 import { DatabaseModule } from '../../database/database.module'; 
-
+import {SagaOrchestratorService} from '../../shared/services/saga-orchestrator.service';
+import { SagaState } from '../../shared/entities/saga-state.entity';
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order]), 
+    TypeOrmModule.forFeature([Order,SagaState]), 
     DatabaseModule,
     KafkaModule
   ],
-  providers: [OrderService],
+  providers: [OrderService, SagaOrchestratorService], // ✅ Add it here
   controllers: [OrderController],
   exports: [OrderService], 
 })
