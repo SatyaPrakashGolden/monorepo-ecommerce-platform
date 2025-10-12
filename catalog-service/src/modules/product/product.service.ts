@@ -417,6 +417,102 @@ export class ProductService {
 
     return products;
   }
+  
+async getProductsByIds(ids: string[]): Promise<any[]> {
+  // Convert string IDs to ObjectId
+  const objectIds = ids.map(id => new Types.ObjectId(id));
+
+  const products = await this.productModel
+    .aggregate([
+      // Step 1: Filter for active products with provided IDs
+      {
+        $match: {
+          status: ProductStatus.ACTIVE,
+          _id: { $in: objectIds }, // Only products from the provided IDs
+        },
+      },
+      // Step 2: Join with Offer collection
+      {
+        $lookup: {
+          from: 'offers',
+          let: { productOffers: { $ifNull: ['$offers', []] } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $in: ['$_id', '$$productOffers'] },
+                    { $eq: ['$appliesToAllProducts', true] },
+                  ],
+                },
+              },
+            },
+            { $match: { isActive: true } },
+            { $sort: { discountValue: -1 } },
+            { $limit: 1 },
+          ],
+          as: 'offers',
+        },
+      },
+      { $unwind: { path: '$offers', preserveNullAndEmptyArrays: true } },
+      // Step 3: Join with ReviewSummary collection
+      {
+        $lookup: {
+          from: 'reviewSummaries',
+          localField: '_id',
+          foreignField: 'productId',
+          as: 'reviewSummary',
+        },
+      },
+      { $unwind: { path: '$reviewSummary', preserveNullAndEmptyArrays: true } },
+      // Step 4: Project the same fields as featured API
+      {
+        $project: {
+          id: '$_id',
+          name: 1,
+          originalPrice: 1,
+          discountPrice: {
+            $round: [
+              {
+                $cond: {
+                  if: { $eq: [{ $ifNull: ['$offers', null] }, null] },
+                  then: '$originalPrice',
+                  else: {
+                    $cond: {
+                      if: { $eq: ['$offers.discountType', 'percentage'] },
+                      then: {
+                        $max: [
+                          0,
+                          {
+                            $subtract: [
+                              '$originalPrice',
+                              { $multiply: ['$originalPrice', { $divide: ['$offers.discountValue', 100] }] },
+                            ],
+                          },
+                        ],
+                      },
+                      else: {
+                        $max: [0, { $subtract: ['$originalPrice', '$offers.discountValue'] }],
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+          image: { $arrayElemAt: ['$images', 0] },
+          rating: { $ifNull: ['$reviewSummary.averageRating', 0] },
+          reviews: { $ifNull: ['$reviewSummary.totalReviews', 0] },
+          isNew: 1,
+          isSale: 1,
+          _id: 0,
+        },
+      },
+    ])
+    .exec();
+
+  return products;
+}
 
 
   private async generateUniqueSlug(name: string): Promise<string> {

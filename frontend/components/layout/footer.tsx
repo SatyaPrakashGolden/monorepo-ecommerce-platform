@@ -1,3 +1,4 @@
+// /home/satya/myproject/frontend/components/layout/footer.tsx
 import Link from "next/link"
 import { Facebook, Instagram, Twitter, Youtube } from "lucide-react"
 
