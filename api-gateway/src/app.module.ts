@@ -7,6 +7,7 @@ import { OfferGatewayModule } from './modules/offer/offer.gateway.module';
 import { UserGatewayModule } from './modules/user/user.gateway.module'
 import { WishlistGatewayModule } from './modules/wishlist/wishlist.gateway.module'
 import { CartGatewayModule } from './modules/cart/cart.gateway.module'
+import { ElasticsearchGatewayModule } from './modules/elasticsearch/elasticsearch.gateway.module';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { CartGatewayModule } from './modules/cart/cart.gateway.module'
     OfferGatewayModule,
     UserGatewayModule,
     WishlistGatewayModule,
-    CartGatewayModule
+    CartGatewayModule,
+    ElasticsearchGatewayModule,
   ],
 })
 export class AppModule { }

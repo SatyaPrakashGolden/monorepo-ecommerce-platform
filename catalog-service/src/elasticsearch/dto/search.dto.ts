@@ -1,19 +1,31 @@
-import { IsOptional, IsString, IsInt, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsString, IsInt, Min, IsEnum, IsArray, ValidateIf, IsBoolean } from 'class-validator';
+import { ProductStatus, Gender } from '../../modules/product/schema/product.schema'; // Adjust path as needed
 
 export class SearchDto {
   @IsString()
   query: string;
 
   @IsOptional()
-  @Type(() => Number)
   @IsInt()
   @Min(0)
   page?: number = 0;
 
   @IsOptional()
-  @Type(() => Number)
   @IsInt()
   @Min(1)
   limit?: number = 10;
+
+  @IsOptional()
+  @IsBoolean()
+  includeAggregations?: boolean = false;
+
+  @IsOptional()
+  filters?: {
+    status?: ProductStatus;
+    gender?: Gender;
+    categories?: string[]; // Category IDs
+    brands?: string[]; // Brand IDs
+    minPrice?: number;
+    maxPrice?: number;
+  };
 }

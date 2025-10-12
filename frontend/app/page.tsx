@@ -1,3 +1,4 @@
+// /home/satya/myproject/frontend/app/page.tsx
 import { HeroSection } from "@/components/home/hero-section"
 import { FeaturedProducts } from "@/components/home/featured-products"
 import { CategoryShowcase } from "@/components/home/category-showcase"

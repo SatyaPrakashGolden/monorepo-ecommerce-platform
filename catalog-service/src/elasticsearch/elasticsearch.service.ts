@@ -149,8 +149,6 @@ export class ElasticsearchService {
 
 
 
-
-
   async createIndex(index: string, body: estypes.IndicesCreateRequest['body']): Promise<any> {
     try {
       if (!(await this.ensureConnection())) {
@@ -274,3 +272,5 @@ export class ElasticsearchService {
 
 
 }
+
+
