@@ -609,46 +609,52 @@ redis-cli TTL test:key
 ### Node.js Example
 
 ```javascript
-const admin = require('firebase-admin');
-const serviceAccount = require('./config/firebase/firebase-service-account.json');
+// src/notification/notification.service.ts
+import { Injectable, Logger } from '@nestjs/common';
+import * as admin from 'firebase-admin';
+import { ConfigService } from '@nestjs/config';
 
-// Initialize Firebase Admin
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+@Injectable()
+export class NotificationService {
+  private readonly logger = new Logger(NotificationService.name);
 
-// Send notification function
-async function sendNotification(token, title, body, data) {
-  const message = {
-    notification: {
-      title: title,
-      body: body
-    },
-    data: data,
-    token: token
-  };
+  constructor(private readonly configService: ConfigService) {
+    const serviceAccount = require(this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT_PATH'));
 
-  try {
-    const response = await admin.messaging().send(message);
-    console.log('Successfully sent message:', response);
-    return response;
-  } catch (error) {
-    console.error('Error sending message:', error);
-    throw error;
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      this.logger.log('Firebase Admin initialized');
+    }
+  }
+
+  async sendNotification(
+    token: string,
+    title: string,
+    body: string,
+    data?: Record<string, string>,
+  ): Promise<string> {
+    const message: admin.messaging.Message = {
+      notification: {
+        title,
+        body,
+      },
+      data,
+      token,
+    };
+
+    try {
+      const response = await admin.messaging().send(message);
+      this.logger.log(`Successfully sent message: ${response}`);
+      return response;
+    } catch (error) {
+      this.logger.error('Error sending message', error);
+      throw error;
+    }
   }
 }
 
-// Example usage
-sendNotification(
-  'user-device-token',
-  'Order Shipped!',
-  'Your order #12345 has been shipped',
-  {
-    orderId: '12345',
-    type: 'order_update',
-    action: 'shipped'
-  }
-);
 ```
 
 ## 💾 Redis Usage Examples
@@ -656,30 +662,60 @@ sendNotification(
 ### Node.js with Redis
 
 ```javascript
-const redis = require('redis');
-const client = redis.createClient({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379
-});
+// src/redis/redis.service.ts
+import { Injectable, OnModuleInit, Logger, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createClient, RedisClientType } from 'redis';
 
-// Connect to Redis
-await client.connect();
+@Injectable()
+export class RedisService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RedisService.name);
+  private client: RedisClientType;
 
-// Cache product data
-await client.setEx('product:12345', 3600, JSON.stringify(productData));
+  constructor(private readonly configService: ConfigService) {}
 
-// Get cached product
-const cachedProduct = await client.get('product:12345');
+  async onModuleInit() {
+    this.client = createClient({
+      socket: {
+        host: this.configService.get<string>('REDIS_HOST', 'localhost'),
+        port: this.configService.get<number>('REDIS_PORT', 6379),
+      },
+    });
 
-// Cache user session
-await client.hSet('session:user123', {
-  userId: '123',
-  lastActive: Date.now(),
-  cartId: 'cart456'
-});
+    this.client.on('error', (err) => this.logger.error('Redis Client Error', err));
 
-// Get session
-const session = await client.hGetAll('session:user123');
+    await this.client.connect();
+    this.logger.log('Connected to Redis');
+  }
+
+  async onModuleDestroy() {
+    await this.client.quit();
+    this.logger.log('Redis connection closed');
+  }
+
+  // Cache a value with expiry in seconds
+  async setCache(key: string, value: any, ttlSeconds: number) {
+    await this.client.setEx(key, ttlSeconds, JSON.stringify(value));
+  }
+
+  // Get cached value
+  async getCache<T>(key: string): Promise<T | null> {
+    const data = await this.client.get(key);
+    if (!data) return null;
+    return JSON.parse(data) as T;
+  }
+
+  // Set a hash (for session, etc.)
+  async setHash(key: string, value: Record<string, any>) {
+    await this.client.hSet(key, value);
+  }
+
+  // Get a hash
+  async getHash(key: string): Promise<Record<string, string>> {
+    return await this.client.hGetAll(key);
+  }
+}
+
 ```
 
 ## 🐛 Troubleshooting
