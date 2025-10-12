@@ -1,1 +1,2 @@
 .env
+notification-service/src/config/service-account.json
