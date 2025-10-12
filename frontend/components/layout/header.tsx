@@ -1,6 +1,6 @@
 "use client"
-
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Search, ShoppingBag, Heart, User, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const router = useRouter()
 
   const categories = [
     { name: "Women", href: "/shop/women" },
@@ -18,6 +20,14 @@ export function Header() {
     { name: "Accessories", href: "/shop/accessories" },
     { name: "Sale", href: "/shop/sale" },
   ]
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+      setSearchQuery("") // Clear the input after search
+    }
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -50,13 +60,21 @@ export function Header() {
             ))}
           </nav>
 
-          {/* Search Bar */}
-          <div className="hidden md:flex items-center space-x-4 flex-1 max-w-md mx-8">
+          {/* Desktop Search Bar */}
+          <form onSubmit={handleSearchSubmit} className="hidden md:flex items-center space-x-4 flex-1 max-w-md mx-8">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input placeholder="Search for products..." className="pl-10 pr-4" />
+              <Input 
+                placeholder="Search for products..." 
+                className="pl-10 pr-4" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-          </div>
+            <Button type="submit" variant="outline" size="sm" className="whitespace-nowrap">
+              Search
+            </Button>
+          </form>
 
           {/* Action Buttons */}
           <div className="flex items-center space-x-4">
@@ -107,10 +125,18 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden border-t py-4">
             <div className="flex flex-col space-y-4">
-              <div className="relative">
+              <form onSubmit={handleSearchSubmit} className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input placeholder="Search..." className="pl-10" />
-              </div>
+                <Input 
+                  placeholder="Search..." 
+                  className="pl-10" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Button type="submit" variant="outline" size="sm" className="mt-2 w-full">
+                  Search
+                </Button>
+              </form>
               {categories.map((category) => (
                 <Link
                   key={category.name}

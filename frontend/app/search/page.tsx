@@ -1,3 +1,4 @@
+// /home/satya/myproject/frontend/app/search/page.tsx
 import { SearchResults } from "@/components/search/search-results"
 import { Suspense } from "react"
 

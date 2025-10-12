@@ -20,6 +20,17 @@ export class ProductGatewayService {
     );
   }
 
+  
+  async getProductsByIds(ids: string[]) {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new Error('No product IDs provided');
+    }
+    return await firstValueFrom(
+      this.productClient.send({ cmd: 'product_bulk_fetch' }, { ids }),
+    );
+  }
+
+
   async getRelatedProducts(productId: string) {
     return await firstValueFrom(
       this.productClient.send({ cmd: 'product_related' }, productId),

@@ -18,5 +18,6 @@ import { ProductGatewayService } from './product.gateway.service';
   ],
   controllers: [ProductController],
   providers: [ProductGatewayService],
+  exports: [ProductGatewayService],
 })
 export class ProductGatewayModule {}

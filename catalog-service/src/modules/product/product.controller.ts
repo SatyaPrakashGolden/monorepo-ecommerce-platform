@@ -74,6 +74,24 @@ export class ProductController {
     }
   }
 
+  @MessagePattern({ cmd: 'product_bulk_fetch' })
+  async getProductsByIdsMessage(@Payload() payload: { ids: string[] }) {
+    try {
+      const { ids } = payload;
+
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        throw new Error('No product IDs provided');
+      }
+
+      const result = await this.productService.getProductsByIds(ids);
+      return result;
+    } catch (error) {
+      console.log(error);
+      throw errorResponse(error, 'Failed to fetch products by IDs');
+    }
+  }
+
   @MessagePattern({ cmd: 'add_product' })
   async addProduct(@Payload() createProductDto: CreateProductDto) {
     try {
