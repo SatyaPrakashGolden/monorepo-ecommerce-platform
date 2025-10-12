@@ -11,15 +11,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
     ],
-    "/search/loading": [
+    "/wishlist/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/search/loading.js"
+      "static/chunks/app/wishlist/page.js"
     ],
-    "/search/page": [
+    "/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/search/page.js"
+      "static/chunks/app/login/page.js"
     ],
     "/_not-found/page": [
       "static/chunks/webpack.js",

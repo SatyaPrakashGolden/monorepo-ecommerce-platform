@@ -1,5 +1,5 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-
+import { UserFcmToken } from '../modules/notification/entity/user.fcm.entity';
 import { User } from '../modules/users/entities/user.entity';
 import * as dotenv from 'dotenv';
 
@@ -12,6 +12,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   username: process.env.DB_USERNAME || 'satya',
   password: process.env.DB_PASSWORD || 'Satya@123',
   database: process.env.DB_NAME || 'fashion_store',
-  entities: [ User],
+  entities: [ User , UserFcmToken],
   synchronize: true,
+    autoLoadEntities: true, 
 };

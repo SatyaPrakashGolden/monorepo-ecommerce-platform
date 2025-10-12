@@ -13,38 +13,49 @@ import {LoginUserDto} from './dto/login-user.dto'
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import redisClient from '../../redis/redisClient';
-
+import {NotificationService} from '../notification/notification.service'
+import { SaveFcmTokenDto } from '../notification/dto/save-fcm-token.dto';
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    
     private readonly jwtService: JwtService,
+    private readonly notificationService:  NotificationService
   ) {}
 
 
+async login(loginDto: LoginUserDto & Partial<SaveFcmTokenDto>): Promise<{
+    message: string;
+    user: { id: number; emailId: string };
+    accessToken: string;
+    refreshToken: string;
+  }> {
+    const { emailId, password, token: fcmToken, deviceType } = loginDto;
 
-async login(loginDto: LoginUserDto): Promise<{
-  message: string;
-  user: { id: number; emailId: string };
-  accessToken: string;
-  refreshToken: string;
-}> {
-  const { emailId, password } = loginDto;
+    const user = await this.userRepository.findOne({ where: { emailId } });
 
-  const user = await this.userRepository.findOne({ where: { emailId } });
+    if (!user) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
 
-  if (!user) {
-    throw new UnauthorizedException('Invalid email or password');
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (fcmToken && deviceType) {
+      try {
+        await this.notificationService.saveOrUpdateFcmToken(user.id, { token: fcmToken, deviceType });
+      } catch (error) {
+
+        console.error('Failed to save FCM token during login:', error);
+      }
+    }
+
+    return this.generateTokensAndReturn(user, 'Login successful');
   }
-
-  const passwordMatch = await bcrypt.compare(password, user.password);
-  if (!passwordMatch) {
-    throw new UnauthorizedException('Invalid email or password');
-  }
-
-  return this.generateTokensAndReturn(user, 'Login successful');
-}
 
 
   private async generateTokensAndReturn(

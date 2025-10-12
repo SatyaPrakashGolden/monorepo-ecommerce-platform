@@ -5,7 +5,8 @@ import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { AuthProvider } from "@/lib/auth-context";
-
+import { NotificationListener } from "@/components/NotificationListener";
+import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <AuthProvider>
           <Header />
+           <NotificationListener />
           <main className="min-h-screen">{children}</main>
+              <Toaster />
           <Footer />
         </AuthProvider>
       </body>
